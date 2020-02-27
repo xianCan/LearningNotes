@@ -654,13 +654,3 @@ service  服务名  [start|stop|restart|reload|status]
 	
 注意：chkconfig重新设置服务后自启动或关闭，需要重启机器reboot才能生效
 ```
-
-```mermaid
-graph LR
-A[方形] -->B(圆角)
-    B --> C{条件a}
-    C -->|a=1| D[结果1]
-    C -->|a=2| E[结果2]
-    F[横向流程图]
-```
-
