@@ -1,4 +1,27 @@
 # Linux学习笔记
+
+## 第五章 Linux的目录结构
+
+**常见目录说明：**
+
+- **/bin：** 存放二进制可执行文件(ls、cat、mkdir等)，常用命令一般都在这里；
+- **/etc：** 存放系统管理和配置文件；
+- **/home：** 存放所有用户文件的根目录，是用户主目录的基点，比如用户user的主目录就是/home/user，可以用~user表示；
+- **/usr ：** 用于存放系统应用程序；
+- **/opt：** 额外安装的可选应用程序包所放置的位置。一般情况下，我们可以把tomcat等都安装到这里；
+- **/proc：** 虚拟文件系统目录，是系统内存的映射。可直接访问这个目录来获取系统信息；
+- **/root：** 超级用户（系统管理员）的主目录（特权阶级^o^）；
+- **/sbin:** 存放二进制可执行文件，只有root才能访问。这里存放的是系统管理员使用的系统级别的管理命令和程序。如ifconfig等；
+- **/dev：** 用于存放设备文件；
+- **/mnt：** 系统管理员安装临时文件系统的安装点，系统提供这个目录是让用户临时挂载其他的文件系统；
+- **/boot：** 存放用于系统引导时使用的各种文件；
+- **/lib ：** 存放着和系统运行相关的库文件 ；
+- **/tmp：** 用于存放各种临时文件，是公用的临时文件存储点；
+- **/var：** 用于存放运行时需要改变数据的文件，也是某些大文件的溢出区，比方说各种服务的日志文件（系统启动日志等。）等；
+- **/lost+found：** 这个目录平时是空的，系统非正常关机而留下“无家可归”的文件（windows下叫什么.chk）就在这里。
+
+## 第六章 vi和vim
+
 &emsp;&emsp;rz  		                  上传文件到Linux服务器  
 
 &emsp;&emsp;sz  文件名/路径	 下载文件到本地
@@ -195,16 +218,16 @@ help  [命令]
     >输出重定向和>>追加
     	1）ls  -l > 文件			（功能描述：列表的内容写入文件中（覆盖写））
     	2）ls  -al >>文件			（功能描述：列表的内容追加到文件的末尾）
-    	3）cat  文件1  >  文件2     （功能描述：将文件1的内容覆盖到文件2）
+    	3）cat  文件1  >  文件2	   （功能描述：将文件1的内容覆盖到文件2）
     	4）echo  "内容"  >>  文件
     
     echo  [选项]  [输出的内容]
     	常用于输出环境变量	echo  $PATH
     
-    head  文件		（功能描述：默认查看文件前10行的内容）
+    head  文件				（功能描述：默认查看文件前10行的内容）
     	head  -n  5  文件		（功能描述：查看指定文件的前5行）
     
-    tail  文件		（功能描述：显示文件后10行）
+    tail  文件				（功能描述：显示文件后10行）
     	tail  -n  5  文件		（功能描述：查看指定文件的后5行）
     	tail  -f  文件		（功能描述：实时总追文件的所有跟新）
     
@@ -217,8 +240,8 @@ help  [命令]
 
 ### 9.5  时间日期类
 
-    date				            显示当前日期时间
-    date  "+%Y-%m-%d   %H:%M:%S"   	显示当前年月日时分秒
+    date							显示当前日期时间
+    date  "+%Y-%m-%d   %H:%M:%S"	显示当前年月日时分秒
     
     设置日期
     date  -s  字符串时间，如"2020-2-23 17:40:00"
@@ -559,7 +582,7 @@ root         2  0.0  0.0      0     0 ?        S    13:28   0:00 [kthreadd]
 	VSZ			使用的虚拟内存
 	RSS			使用物理内存情况
 	TTY			使用的终端
-	STAT		进程的状态，其中S-睡眠，s-表示该进程是会话的先到晋城，N-表示进程拥有比普通有限集更低的由下级，R-正在运行，D-短期等待，Z-僵尸进程，T-被跟踪或者被停止等等
+	STAT		进程的状态，其中S-睡眠，s-表示该进程是会话的先到晋城，N-表示进程拥有比普通有限集更低的由下级，R-正在运行，D-短期等待，Z-僵死进程，T-被跟踪或者被停止等等
 	START		启动时间
 	TIME		占用CPU的总时间
 	COMMAND		进程执行时的命令行
@@ -607,18 +630,23 @@ service  服务名  [start|stop|restart|reload|status]
 在CentOS7.0以后不再使用service，而是systemctl
 ```
 
+应用实例：  
+
+1）查看当前防火墙的状态，关闭防火墙和重启防火墙  
+
 ```
-案例：
-	1）查看当前防火墙的状态，关闭防火墙和重启防火墙
-	service  iptables  status
-	service  iptables  stop
-	service  iptables  start
-	
-细节讨论：
-	1）关闭或者启用防火墙后，立即生效。在windows下 telnet ip 端口 即可验证
-	2）这种方式只是临时生效，当重启系统后，还是回归以前对服务的设置
-	3）如果希望某个服务自启动或者永久关闭生效，要使用chkconfig
+service  iptables  status
+service  iptables  stop
+service  iptables  start
 ```
+
+细节讨论：  
+
+1）关闭或者启用防火墙后，立即生效。在windows下 telnet ip 端口 即可验证  
+
+2）这种方式只是临时生效，当重启系统后，还是回归以前对服务的设置  
+
+3）如果希望某个服务自启动或者永久关闭生效，要使用chkconfig
 
 ### 12.5  查看服务名
 
@@ -637,20 +665,184 @@ service  服务名  [start|stop|restart|reload|status]
 3）  chkconfig  --level  5（某个运行级别） 服务名  on/off
 ```
 
-```
-应用实例：
-1）请显示当前系统所有服务的各个运行级别的运行状态
-	chkconfig  --list
-2）请查看sshd服务的运行状态
-	service  sshd  status
-3）将sshd服务在运行级别5下设置为不自动启动，看看有什么效果？
-	chkconfig  --level  5  sshd  off
-4）当运行级别为5时，关闭防火墙
-	chkconfig  --level  5  iptables  on
-5）在所有运行级别下，关闭防火墙
-	chkconfig  iptables  off
-6）在所有运行级别下，开启防火墙
-	chkconfig  iptables  on
-	
+应用实例：  
+
+1）请显示当前系统所有服务的各个运行级别的运行状态  
+
+&emsp;&emsp;chkconfig  --list  
+
+2）请查看sshd服务的运行状态  
+
+&emsp;&emsp;service  sshd  status  
+
+3）将sshd服务在运行级别5下设置为不自动启动  
+
+&emsp;&emsp;chkconfig  --level  5  sshd  off  
+
+4）当运行级别为5时，关闭防火墙  
+
+&emsp;&emsp;chkconfig  --level  5  iptables  on  
+
+5）在所有运行级别下，关闭防火墙  
+
+&emsp;&emsp;chkconfig  iptables  off  
+
+6）在所有运行级别下，开启防火墙  
+
+&emsp;&emsp;chkconfig  iptables  on  
+
 注意：chkconfig重新设置服务后自启动或关闭，需要重启机器reboot才能生效
+
+```mermaid
+graph LR
+G[开机流程说明]
+A[开机] --> B[BIOS] 
+	 B --> C[boot]
+	 C --> D[init进程]
+	 D --> E[运行级别]
+	 E --> F[运行级对应的服务]
+	 
 ```
+
+### 12.7  动态监控进程
+
+&emsp;&emsp;top命令与ps很相似。他们都是用来显示正在执行的进程。top与ps最大的不同之处，在于top在执行一段时  
+
+间可以更新正在运行的进程。
+
+```
+top
+	-d		指定top指令每隔几秒更新，默认是3秒，在top命令的交互模式当中可以执行的命令
+	-i		使top不显示任何闲置或者僵死进程
+	-p		通过指定监控进程ID来仅仅监控某个进程的状态
+	
+交互操作说明
+	p		以CPU使用率排序，默认就是此项
+	M		以内存的使用率排序
+	N		以PID排序
+	q		退出top
+	
+top			当前时间
+up			系统运行时间
+users		当前登录系统用户数
+load average负载均衡
+Tasks		任务总数
+cpu(s)		cpu使用情况
+	us		用户已用cpu
+	sy		系统已用cpu
+	ni
+	id		空闲cpu
+Mem			内存使用情况
+	total	总量
+	userd	已用
+	free	空闲
+	buffers	缓冲
+Swap		内存不够用才会使用swap替代内存
+```
+
+应用实例：  
+
+1）监视特定用户  
+
+&emsp;&emsp;top，然后输入"u"，输入用户名再回车即可。  
+
+2）终止指定的程序  
+
+&emsp;&emsp;top，然后输入"k"，输入PID再回车即可。  
+
+3）指定系统状态的更新时间（每隔10秒自动更新）  
+
+&emsp;&emsp;top  -d  10
+
+### 12.8  监控网络状态
+
+&emsp;&emsp;可用于查询开放的端口与外部的端口的连接情况。
+
+```
+netstat  [选项]
+	-an		按一定顺序排列输出
+	-p		显示哪个进程在调用
+```
+
+## 第十三章 RPM与YUM
+
+### 13.1  RPM包的管理
+
+&emsp;&emsp;一种用于互联网下载包的打包及安装工具，它包含在某些Linux分发版中。它生成具有.PRM扩展名的文件。  
+
+RPM是RedHat  Package Manager（RedHat软件包管理工具）缩写，类似windows的setup.exe，这一文件格  
+
+式名称虽然打上了RedHat的标志，但理念是通用的。
+
+&emsp;&emsp;Linux的分发版本都有采用（suse，redhat，centos等等），可以算是公认的行业标准。
+
+**rpm包的简单查询指令**
+
+1、查询已安装的rpm列表
+
+```
+rpm  -qa | grep  xxx
+```
+
+2、查询安装包的详细信息
+
+```
+rpm  -qi  xxx
+```
+
+3、查询软件的安装的文件和路径
+
+```
+rpm  -ql  xxx
+```
+
+4、查询某个文件属于哪个软件包
+
+```
+rpm  -qf  /xxx/xxx
+```
+
+**rpm的卸载**
+
+```
+rpm  -e  rpm包名称
+```
+
+**rpm包的安装**
+
+```
+rpm  -ivh  rpm安装包的路径
+	i=install  安装
+	v=verbose  提示
+	h=hash     进度条
+```
+
+### 13.2  YUM
+
+&emsp;&emsp;Yum是一个Shell前端软件包管理器。基于RPM包管理，能够从指定的服务器自动下载RPM包并且安装，可以  
+
+自动处理依赖性关系，并且一次安装所有依赖的软件包。
+
+**yum的查看**
+
+```
+yum  list | grep  xxx
+```
+
+**yum的安装**
+
+```
+yum  install  xxx
+```
+
+## 第十四章 Shell编程
+
+### 14.1  Shell
+
+&emsp;&emsp;Shell是一个命令行解释器，它为用户提供了一个向Linux内核发送请求以便运行程序的界面系统级程序，用户  
+
+可以用Shell来启动、停止甚至编写一些程序。
+
+&emsp;&emsp;脚本以 #!/bin/bash 开头，表示以bash来运行该脚本。
+
+### 14.2  Shell的变量
