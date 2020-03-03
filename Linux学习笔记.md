@@ -1214,3 +1214,258 @@ case $1 in
 esac
 ```
 
+#### 14.8.3  for循环
+
+**基本语法1：**  
+
+for  变量   in  值1  值2  值3...  
+
+do  
+
+​		程序  
+
+done
+
+**基本语法2：**  
+
+for  ((初始值;  循环控制条件;  变量变化))  
+
+do  
+
+​		程序  
+
+done  
+
+**应用案例：**  
+
+1）打印命令行输入的参数  
+
+```shell
+#!/bin/bash
+
+#加引号会整体处理，不加引号会分开遍历处理
+for i in "$*"
+do
+        echo "the num is $i"
+done
+#测试结果
+#the num is 10 20 30    加引号
+
+#the num is 10			不加引号
+#the num is 20
+#the num is 30
+
+
+#分开遍历处理，遍历应该用这个
+for j in "$@"
+do
+        echo "the num is $j"
+done
+#测试结果
+#the num is 10
+#the num is 20
+#the num is 30
+```
+
+2）从1加到100的值输出显示
+
+```
+#!/bin/bash
+
+SUM=0
+for ((i=1; i<=100; i++))
+do
+        SUM=$[$SUM+$i]
+done
+echo "sum=$SUM"
+```
+
+#### 14.8.4  while循环
+
+**基本语法1（注意中括号前后要有空格）：**  
+
+while  [ 条件判断式 ]  
+
+do  
+
+​		程序  
+
+done  
+
+**应用实例：**  
+
+1）从命令行输入一个数n，统计从1+...+n的值是多少  
+
+```shell
+#!/bin/bash
+
+SUM=0
+i=1
+while [ $i -le $1 ]
+do
+        SUM=$[$SUM+$i]
+        i=$[$i+1]
+done
+echo "SUM=$SUM"
+```
+
+#### 14.8.5  read读取控制台输入
+
+**基本语法：**  
+
+read  [选项]  [参数]  
+
+&emsp;&emsp;-p&emsp;&emsp;指定读取值时的提示符
+
+&emsp;&emsp;-t&emsp;&emsp;指定读取值时等待的时间（秒），如果没有在指定的时间内输入，就不再等待了
+
+&emsp;&emsp;参数&emsp;&emsp;指定读取值得变量名  
+
+**应用实例：**  
+
+1）读取控制台输入一个num值  
+
+```shell
+#!/bin/bash
+
+read -p "请输入一个数字num=" NUM
+echo "你输入的值是num=$NUM"
+```
+
+2）读取控制台输入一个num值，在10秒内输入  
+
+```shell
+#!/bin/bash
+
+read -t 10 -p "请输入一个数字num=" NUM
+echo "你输入的值是num=$NUM"
+```
+
+### 14.9  函数
+
+#### 14.9.1  系统函数
+
+**1、basename基本语法：**  
+
+功能：返回完整路径最后/的部分，常用于获取文件名，如果指定了suffix后缀，则会将文件名的后缀也去掉   
+
+basename  [pathname]  [suffix]   
+
+**应用案例：**
+
+1）请返回  /opt/shell/caseTest.sh 的 “caseTest.sh” 部分  
+
+```shell
+basename /opt/shell/caseTest.sh
+#输出  caseTest.sh
+
+basename /opt/shell/caseTest.sh .sh
+#输出  caseTest
+```
+
+**2、dirname基本语法：**  
+
+功能：返回完整路径最后/的前面部分
+
+dirname  [pathname]  
+
+**应用案例：**
+
+1）请返回  /opt/shell/caseTest.sh 的 /opt/shell  
+
+```shell
+dirname   /opt/shell/caseTest.sh
+#输出  /opt/shell
+```
+
+#### 14.9.2  自定义函数  
+
+**基本语法：**  
+
+[ function ] functionName [()]
+
+{
+
+​				Action;
+
+​				[return int;]
+
+}  
+
+调用时直接写函数名：functionName  
+
+**应用实例：**
+
+1）计算输入两个参数的和  
+
+```shell
+#!/bin/bash
+
+function getSum(){
+
+        SUM=$[$n1+$n2]
+        echo "和是=$SUM"
+}
+
+read -p "请输入第一个数n1=" n1
+read -p "请输入第二个数n2=" n2
+
+#调用函数
+getSum $n1 $n2
+```
+
+### 14.10  Shell编程综合案例
+
+**需求分析：**  
+
+1）每天凌晨 2:10 备份数据库xianCanDB到 /data/backup/db  
+
+2）备份开始和备份结束能够给出相应的提示信息  
+
+3）备份后的文件要求以备份时间为文件名，并打包成 .tar.gz  的形式，比如：2020-3-2 233000.tar.gz  
+
+4）在备份的同时，检查是否有10天前备份的数据库文件，如果有就将其删除  
+
+```shell
+#!/bin/bash
+
+#备份的路径
+BACKUP=/data/backup/db
+#当前的时间作为文件名
+DATETIME=$(date +%Y_%m_%d_%H%M%S)
+
+echo "$DATETIME"
+echo "========开始备份========"
+echo "========备份的路径是 $BACKUP/$DATETIME.tar.gz"
+
+#主机
+HOST=localhost
+#用户名
+DB_USER=root
+#密码
+DB_PWD=root
+#创建备份的数据库
+DATABASE=xianCanDB
+
+#创建备份的路径
+#如果备份的路径文件夹存在，就使用，否则就创建
+[ ! -d "$BACKUP/$DATETIME" ] && mkdir -p "$BACKUP/$DATETIME"
+
+#执行mysql的备份数据库的指令
+mysqldump -u$DB_USER -p$DB_PWD --host=$HOST $DATABASE | gzip > $BACKUP/$DATETIME/$DATETIME.sql.gz
+#打包备份文件
+cd $BACKUP
+tar -zcvf $DATETIME.tar.gz $DATETIME
+#删除临时目录
+rm -rf $BACKUP/$DATETIME
+
+#删除10天前的备份文件
+find $BACKUP -mtime +10 -name "*.tar.gz" -exec rm -rf {} \;
+echo "========执行备份成功========"
+```
+
+```shell
+#在crontab中的配置
+10 2 * * * /usr/sbin/mysql_db_backup.sh
+```
+
