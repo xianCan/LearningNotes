@@ -362,3 +362,100 @@ GitHub、码云
 &emsp;&emsp;forking工作流是在GitFlow基础上，充分利用了Git的Fork和pull request的功能以达到代码审核的目的 。  
 
 更适合安全可靠地管理大团队的开发者，而且能接收不信任贡献者的提交。
+
+## 第六章  Git的安装
+
+### 6.1  windows环境
+
+&emsp;&emsp;从git官网下面下载exe文件安装即可。
+
+### 6.2  Linux环境
+
+* **yum方式：**
+
+  ```shell
+  yum -y install git
+  ```
+
+  &emsp;&emsp;在Linux安装GIt，非常简单，只需要执行上述命令即可。
+
+  ------
+
+  &emsp;&emsp;安装完成之后，yum安装的git被安装在 /usr/libexec/git-core 目录下。查看git版本号，会出现如下结果
+
+  ```shell
+  git  --version
+  
+  #git version 1.8.3.1
+  ```
+
+* **源码编译方式：**
+
+  &emsp;&emsp;从上面git的版本号可以看出，yum方式安装的git版本非常旧，不适合使用，因此一般使用源码编译方式  
+
+  进行git的安装。
+
+  * 1、进入到git在GitHub上发布版本页面https://github.com/git/git/releases，选择较新版本的tar.gz包。
+
+  * 2、将tar.gz包上传到Linux的/opt目录下（自己选即可）。
+
+  * 3、解压压缩包。
+
+    ```shell
+    tar -zxvf xxx.tar.gz
+    ```
+
+  * 4、进入到解压后的文件夹。
+
+    ```shell
+    cd xxx
+    ```
+
+  * 5、在安装编译之前需要安装编译所需要的的依赖。
+
+    ```shell
+    yum install curl-devel expat-devel gettext-devel openssl-devel zlib-devel gcc perl-ExtUtils-MakeMaker
+    ```
+
+  * 6、安装编译源码所需依赖的时候，yum自动帮你安装了git，这时候你需要先卸载这个旧版的git。
+
+    ```shell
+    yum -y remove git
+    ```
+
+  * 7、编译git源码。
+
+    ```shell
+    make prefix=/usr/local/git all
+    ```
+
+  * 8、安装git至`/usr/local/git`路径
+
+    ```shell
+    make prefix=/usr/local/git install
+    ```
+
+  * 9、配置环境变量
+
+    ```shell
+    vim /etc/profile 
+    
+    #在底部加上
+    export PATH=$PATH:/usr/local/git/bin
+    ```
+
+  * 10、刷新环境变量
+
+    ```shell
+    source /etc/profile
+    ```
+
+  * 11、查看Git是否安装完成
+
+    ```shell
+    #查看git的版本信息
+    git --version
+    
+    #查询git的安装路径
+    whereis git
+    ```
