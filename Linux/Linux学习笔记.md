@@ -401,6 +401,30 @@ crontab  [选项]
   /jenkins/job/[jenkins项目名]/build?token=[身份验证令牌]
   ```
 
+### 9.11  后台运行程序
+
+```shell
+#窗口关闭了，程序依然在运行
+nohup command [args...] &
+
+#举例
+nohup java -jar xxx.jar > /opt/log.log &
+```
+
+**nohup**
+
+* 结果默认会输出到nohup.out
+* 使用Ctrl+C发送SIGNT信号，程序关闭
+* 关闭Session发送SIGNUP信号，程序免疫
+
+**&**
+
+* 结果会输出到终端
+* 使用Ctrl+C发送SIGHT信号，程序免疫
+* 关闭session发送SIGHUP信号，程序关闭
+
+**平时线上机场使用nohup和&配合来启动程序**
+
 ## 第十章  Linux磁盘分区、挂载
 
 ### 10.1 分区基础知识

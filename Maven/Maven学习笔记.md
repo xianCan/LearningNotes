@@ -76,3 +76,63 @@
     * 以配置的方式明确告诉框架，配置文件/注解
     * 遵守框架内部已经存在的约定：约定 > 配置 > 编码
 
+### 2.2  Maven仓库问题
+
+* Maven的核心程序中仅仅等一了抽象的生命周期，但是具体的工作必须有特定的插件来完成。而插件本身并  
+
+  不包含在Maven的核心程序中。
+
+* 当我们执行的Maven命令需要用到某些插件时，Maven核心程序会首先到本地仓库中查找。
+
+* 本地仓库的默认位置：HOME目录/.m2/repository。
+
+* Maven核心程序如果在本地仓库中找不到需要的插件，那么他会自动连接外网，到中央仓库中下载。
+
+* 因此通常情况下需要指定本地仓库和中央仓库
+
+  * 本地仓库在settings.xml中的localRepository标签中修改
+  * 在服务器时，通常会将中央仓库修改为自己搭建的私服
+
+### 2.3  常用Maven命令
+
+* mvn clean
+* mvn compile
+* mvn package
+
+### 2.4 POM
+
+* **Project Object Model  项目对象模型**
+
+* pom.xml对于Maven工程师核心配置文件，与工件过程相关的一切设置都在这个文件中进行配置
+
+### 2.5  坐标
+
+**使用三个两在仓库中唯一定位一个Maven工程**  
+
+* groupid：公司或组织域名倒序+项目名
+* artifactid：模块名
+* version：版本名
+
+**Maven工程坐标与仓库中路径的对应关系**
+
+```shell
+<groupId>org.springframework</groupId>
+<artifactId>spring-core</artifactId>
+<version>4.0.0.RELEASE</version>
+
+#具体包路径
+org/springframework/spring-core/4.0.0.RELEASE/spring-core-4.0.0.RELEASE
+```
+
+### 2.6  仓库
+
+* **本地仓库**：当前电脑上部署的仓库目录，为当前电脑上所有Maven工程服务
+* **远程仓库**：
+  * 私服：Nexus搭建在局域网环境中，为局域网范围内的所有Maven工程服务
+  * 中央仓库：架设在Internet上，为全世界所有Maven工程服务
+  * 中央仓库镜像：为了分担中央仓库的压力，提升用户访问速度，架设在各个地方
+* **仓库中保存的内容**：
+  * Maven自身所需要的插件
+  * 第三方框架或工具的jar包
+  * 自己开发的Maven工程
+

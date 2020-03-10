@@ -131,21 +131,17 @@ GitHub、码云
   ```shell
   git log
   
-  ```
-
-#简洁信息
+  #简洁信息
   git log --pretty=oneline
   ```
-  
-  &emsp;&emsp;查看git的历史提交信息
-  
-  ------
-  
+
+* **查看git的历史提交信息**
+
   ```shell
   git reflog
   ```
 
-  &emsp;&emsp;显示较为简短的版本信息，并且列出移动版本需要移动的步数
+&emsp;&emsp;显示较为简短的版本信息，并且列出移动版本需要移动的步数
 
 * **git版本后退前进：**  
 
