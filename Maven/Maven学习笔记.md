@@ -119,7 +119,7 @@
 
 **Maven工程坐标与仓库中路径的对应关系**
 
-```shell
+```xml
 <groupId>org.springframework</groupId>
 <artifactId>spring-core</artifactId>
 <version>4.0.0.RELEASE</version>
@@ -179,7 +179,7 @@ org/springframework/spring-core/4.0.0.RELEASE/spring-core-4.0.0.RELEASE
 
 * 和依赖的传递性属于相反的操作，将某一个底层传递过来的依赖排除掉
 
-  ```shell
+  ```xml
   <exclusions>
   	<exclusion>
   		<groupId></groupId>
@@ -201,7 +201,26 @@ org/springframework/spring-core/4.0.0.RELEASE/spring-core-4.0.0.RELEASE
 
   一声明版本号，在需要同一版本的位置，使用${自定义标签名}引用声明的版本号
 
-### 2.13  查找依赖信息的网站
+### 2.13  插件
+
+* springboot项目中常用的打包插件，当运行package进行打包时，会自动打成一个可以直接运行的JAR文件，  
+
+  使用"java -jar"命令就可以直接运行
+
+  ```xml
+  <plugins>
+      <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+          <configuration>
+              <source>1.8</source>
+              <target>1.8</target>
+          </configuration>
+      </plugin>
+  </plugins>
+  ```
+
+### 2.14  查找依赖信息的网站
 
 ```
 http://mvnrepository.com/
