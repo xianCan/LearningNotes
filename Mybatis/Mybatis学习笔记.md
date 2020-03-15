@@ -291,6 +291,314 @@
 
 ## 第三章  sql映射文件
 
+### 3.1  insert、update、delete
+
+* 对于**单体**的增改方法，parameterType可写可不写，但建议写上，能够快速知道入库类型的数据接口
+
+* **mybatis允许增删改直接定义以下类型返回值**
+
+  * **Integer(int)**：返回变更的条数
+  * **Long(long)**：返回变更的条数
+  * **Boolean(boolean)**：非0返回true，0则返回false
+  * **void**
+
+* 对于mysql可以使用一些配置来获取自增的主键，将useGeneratedKeys设置为true，keyProperty填入参数  
+
+  类Employee的主键，mybatis入库完成后会自动将主键值set到Emplyee的id
+
+  ```xml
+  <insert id="addEmp" parameterType="com.xianCan.springboot.bean.Employee"
+      useGeneratedKeys="true" keyProperty="id">
+      INSERT INTO TB_EMPLOYEE (LAST_NAME,EMAIL,GENDER,DID) VALUES
+      (#{lastName}, #{email}, #{gender}, #{dId})
+  </insert>
+  ```
+
+* 对于Oracle不支持主键自增，但是可以使用序列来模拟自增
+
+  ```sql
+  #查询用户的所有表序列
+  select * from user_sequences;
+  ```
+
+  * BEFORE：先将自增的主键序列set到javaBean对象再进行insert操作
+
+    ```xml
+    <insert id="addEmp" databaseId="oracle" parameterType="com.xianCan.springboot.bean.Employee">
+            <!--
+            keyProperty：查出的主键值封装给javaBean的哪个属性
+            order="BEFORE"：当前sql是在插入sql之前运行
+            resultType：查出的数据的返回值类型
+            -->
+            <selectKey keyProperty="id" order="BEFORE" resultType="java.lang.Integer">
+                <!--先从虚表中查询序列的下一个值-->
+                SELECT TB_EMPLOYEE_SEQ.nextval FROM dual
+            </selectKey>
+            <!--插入时的主键是从序列中拿到的-->
+            INSERT INTO TB_EMPLOYEE (ID,LAST_NAME,EMAIL,GENDER,DID) VALUES
+            (#{id}, #{lastName}, #{email}, #{gender}, #{dId})
+    </insert>
+    ```
+
+  * AFTER：先进行insert操作再将自增的主键序列set到javaBean（不建议使用，因为如果插入多条数据时，  
+
+    从TB_EMPLOYEE_SEQ.currval中得到的id会是最后一次的值，前面的都获取不到）
+
+### 3.2  参数处理
+
+* **单个参数**：mybatis不会做特殊处理，parameterType可以省略
+
+  #{参数名}：取出参数值
+
+* **多个参数**：mybatis会做特殊处理，多个参数会被封装成一个map
+
+  * key：param1...paramN，或者参数的索引也可以，或者@Param注解指定key
+  * value：传入的参数值
+
+  ------
+
+  * #{param1...paramN}就是从map中获取指定的key值（不推荐）
+
+    ```java
+    Employee getEmpById(Integer id, String lastName)
+    ```
+
+    ```xml
+    <select id="getEmpById" resultType="employee">
+    	select * from tb_employee where id = #{param1} AND last_name=#{param2}
+    </select>
+    ```
+
+  ------
+
+  * 指定参数名做法（推荐）
+
+    ```java
+    Employee getEmpById(@Param("id") Integer id, @Param("lastName") String lastName);
+    ```
+
+    ```xml
+    <select id="getEmpById" resultType="employee">
+    	select * from tb_employee where id = #{id} AND last_name=#{lastName}
+    </select>
+    ```
+
+  * 如果多个参数正好是我们业务逻辑的数据模型，直接传入pojo
+
+    #{属性名}：取出传入的pojo的属性值
+
+  ------
+
+  * 如果多个参数不是业务模型中的数据，没有赌赢的pojo，可以传入map代替
+
+    #{key}：取出map中的值
+
+  * **注意点：**
+
+    ```java
+    public Employee getEmp(@Param("id")Integer id, String lastName)
+    //取值：id==》#{id/param1}	lastName==》#{param2}
+        
+    public Employee getEmp(Integer id, @Param("e")Employee emp)
+    //取值：id==》#{param1}		lastName==》#{param2.lastname/e.lastName}
+        
+    /*特别注意：如果是Collection(List、Set)类型或者是数组也会特殊处理，就是把传入的List或者数组		封装在map中
+        key：Collection(collection)，如果是List还可以使用这个key(list)、数组key(array)
+    */
+    public Employee getEmpById(List<Integer> ids)
+    //取出第一个id的值，#{list[0]}
+    ```
+
+* **结合源码了解mybatis怎么处理参数**
+
+  ```java
+  Employee getEmpById(@Param("id") Integer id, @Param("lastName") String lastName);
+  ```
+
+  * 对于上述方法，会进入到ParamNameResolver这个类里面处理ParamNameResolver里面有一个有参  
+
+    构造器，最终会得到一个names的SortedMap<Integer, String> 。也就是names:{0=id,1=lastName}
+
+    ------
+
+  * 有参构造如下
+
+    ```java
+    public ParamNameResolver(Configuration config, Method method) {
+            Class<?>[] paramTypes = method.getParameterTypes();
+            Annotation[][] paramAnnotations = method.getParameterAnnotations();
+            SortedMap<Integer, String> map = new TreeMap();
+            int paramCount = paramAnnotations.length;
+    
+            for(int paramIndex = 0; paramIndex < paramCount; ++paramIndex) {
+                if (!isSpecialParameter(paramTypes[paramIndex])) {
+                    String name = null;
+                    Annotation[] var9 = paramAnnotations[paramIndex];
+                    int var10 = var9.length;
+    
+                    for(int var11 = 0; var11 < var10; ++var11) {
+                        Annotation annotation = var9[var11];
+                        if (annotation instanceof Param) {
+                            this.hasParamAnnotation = true;
+                            name = ((Param)annotation).value();
+                            break;
+                        }
+                    }
+    
+                    if (name == null) {
+                        if (config.isUseActualParamName()) {
+                            name = this.getActualParamName(method, paramIndex);
+                        }
+    
+                        if (name == null) {
+                            name = String.valueOf(map.size());
+                        }
+                    }
+    
+                    map.put(paramIndex, name);
+                }
+            }
+    
+            this.names = Collections.unmodifiableSortedMap(map);
+        }
+    ```
+
+  * 1、获取每个标了param注解的参数@Param的值：id、lastName：赋值给name
+
+  * 2、每次解析一个参数给map中保存信息：（key：参数索引，value：name的值）
+
+    * name的值
+      * 标注了param注解：注解的值
+      * 没有标注：
+        * 1、全局配置：useActualParamName(jdk1.8)：name=参数名
+        * 2、name=map.size()：相当于当前元素的索引
+
+  * ------
+
+    然后进到ParamNameResolver类里面的getNamedParams去获取对应的参数值
+
+    ```java
+    //传进来args数据结构为：args[1, "Tom"]
+    public Object getNamedParams(Object[] args) {
+            int paramCount = this.names.size();
+            if (args != null && paramCount != 0) {
+    //          1、如果只有一个元素，并且没有@Param注解，取出args[0]：单个参数直接返回
+                if (!this.hasParamAnnotation && paramCount == 1) {
+                    return args[((Integer)this.names.firstKey()).intValue()];
+    //          2、多个元素或者有@Param注解
+                } else {
+                    Map<String, Object> param = new ParamMap();
+                    int i = 0;
+    //              3、遍历names集合：{0=id, 1=lastName}  
+                    for(Iterator var5 = this.names.entrySet().iterator(); var5.hasNext(); ++i) {
+    //                  4、names集合的value作为key；namse集合的key有座位取值args的索引值，  					args[0]:args[1, "Tom"]
+    //                  {id=args[0]:1, lastName=args[1]:Tom}  
+                        Entry<Integer, String> entry = (Entry)var5.next();
+                        param.put((String)entry.getValue(), args[((Integer)entry.getKey()).intValue()]);
+    //                  5、额外地将每一个参数也保存到map中，使用新的key：param1...paramN  
+                        String genericParamName = "param" + String.valueOf(i + 1);
+                        if (!this.names.containsValue(genericParamName)) {
+                            param.put(genericParamName, args[((Integer)entry.getKey()).intValue()]);
+                        }
+                    }
+    
+                    return param;//最终返回结果：{id=1, lastName=Tom, param1=1, param2=Tom}
+                }
+            } else {
+                return null;
+            }
+        }
+    ```
+
+* **参数值的获取**
+
+  * #{}：可以获取map中的值或者pojo对象属性的值
+
+  * ${}：可以获取map中的值或者pojo对象属性的值
+
+  * **区别：**
+
+    * #{}是以预编译的形式，将参数设置到sql语句中，相当于原生jdbc中的PreparedSatement
+    * ${}取出的值直接拼装在sql语句中，会有sql注入问题
+
+  * 大多数情况下，我们取参数的值都应该去使用#{}，原生jdbc不支持占位符的地方我们就可以使用${}进行  
+
+    取值
+
+    * 比如分表，员工的薪水按照年份分表拆分，2019_salary、2020_salary等等，我要查询某年的表就可  
+
+      以用${}限定年份去对应不同的表
+
+      ```sql
+      select * from ${year}_salary where xxx
+      ```
+
+    * 比如对某列进行排序
+
+      ```sql
+      select * from tb_employee order by ${orderName} ${order}
+      ```
+
+*  **#{}更丰富的用法**
+
+  * 规定参数的一些规则
+
+    * javaType、jdbcType、mode（存储过程）、numericScale、resultType、typeHandler、  
+
+      jdbcTypeName、expression（未来准备支持的功能）
+
+  * 上面的规则除了mode存储过程，一般只需要注意jdbcType即可。jdbcType通常需要在某种特定的条件下    
+
+    被设置：在我们数据位null的时候，有些数据库可能不能识别mybatis对null的默认处理，如Oracle（报  
+
+    错）
+
+  * 会报JdbcType OTHER：无效的类型：因为mybatis会对所有的null都映射的是原生jdbc的OTHER类型，  
+
+    即jdbcTypeForNull=OTHER，而Oracle不能正确处理（Oracle不遵循sql规范）
+
+  * **两种解决办法**
+
+    * 1、指定jdbcType为非OTHER
+
+      ```xml
+      #{email, jdbcType=VARCHAR/NULL}
+      ```
+
+    * 2、在settings中设置mybatis的全局属性
+
+      ```xml
+      <settings>
+          <setting name="jdbcTypeForNull" value="NULL" />
+      </settings>
+      ```
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+*  
+
+* 
+
 
 
 
