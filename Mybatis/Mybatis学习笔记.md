@@ -573,30 +573,78 @@
       </settings>
       ```
 
-*  
 
-*  
+### 3.3  select
 
-*  
+* **resultType：如果返回的是一个集合，要写集合中元素的类型**
 
-*  
+  ```xml
+  <select id="getEmp" resultType="com.xianCan.springboot.bean.Employee">
+          select * from tb_employee
+   </select>
+  ```
 
-*  
+* **返回map**
 
-*  
+  * 返回一条记录的map
 
-*  
+    ```java
+    Map<String, Object> getEmpById(Integer id)
+    ```
 
-*  
+    ```xml
+    <!--mybatis已经为我们封装好常用类型的别名，如map-->
+    <select id="getEmpById" resultType="map">
+    	select * from tb_employee where id =#{id}
+    </select>
+    ```
 
-*  
+  * 多条记录封装成一个map：Map<Integer,  Employee>，键为主键id，值为对应的  
 
-*  
+    javaBean对象
 
-*  
+    ```java
+    @MapKey("id")
+    Map<Integer, Employee> getEmpMap(String id)
+    ```
 
-*  
+    ```xml
+    <select id="getEmpMap" resultType="com.xianCan.springboot.bean.Employee">
+    	select * from tb_employee where id =#{id}
+    </select>
+    ```
 
+* **resultMap**
+
+  * 自定义某个javaBean的封装规则
+
+    ```xml
+    <resultMap type="com.xianCan.springboot.bean.Employee" 
+               id="myEmp">
+        <!--id：定义主键底层会有优化
+    		column：指定列
+    		property：指定对应的javaBean属性-->
+        <id column="id" property="id"/>
+        <result column="last_name" property="lastName"/>
+        <result column="email" property="email"/>
+        <!--其它不指定的列会自动封装，但建议全部写上-->
+    </resultMap>
+    
+    <select id="getEmpById" resultMap="myEmp">
+    	select * from tb_employee where id =#{id}
+    </select>
+    ```
+
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
 * 
 
 
