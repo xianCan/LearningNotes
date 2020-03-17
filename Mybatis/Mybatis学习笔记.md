@@ -635,16 +635,225 @@
     </select>
     ```
 
+* **关联查询**
+
+  * resultMap里的collection标签、association标签，具体略
+
+### 3.4  动态sql
+
+* **if**
+
+  * if里面的test表达式用的是OGNL表达式
+
+    ```xml
+    <select id="getEmpList" resultType="com.xianCan.springboot.bean.Employee">
+            select * from tb_employee
+            where
+            <if test="id != null">
+                id = #{id}
+            </if>
+            <if test="lastName != null and lastName != ''">
+                and last_name like #{lastName}
+            </if>
+            <if test="email != null and email.trim() != ''">
+                and email = #{email}
+            </if>
+            <if test="gender==0 or gender==1">
+                and gender = #{gender}
+            </if>
+        </select>
+    ```
+
+* **where**
+
+  * 查询的时候如果某些条件没带可能sql拼装会有问题，如上述的表达式中id为null，则会有如下情况出现
+
+    ```sql
+    select * from tb_employee where and last_name like xxx
+    ```
+
+  * 有两种解决方案：
+
+    * 1、给where后面加上1=1，以后的条件都and xxx
+
+      ```xml
+      <select id="getEmpList" resultType="com.xianCan.springboot.bean.Employee">
+              select * from tb_employee
+              where 1=1
+              <if test="id != null">
+                  and id = #{id}
+              </if>
+              <if test="lastName != null and lastName != ''">
+                  and last_name like #{lastName}
+              </if>
+              <if test="email != null and email.trim() != ''">
+                  and email = #{email}
+              </if>
+              <if test="gender==0 or gender==1">
+                  and gender = #{gender}
+              </if>
+          </select>
+      ```
+
+    * 2、where标签给所有条件包裹。mybatis就会将where标签中拼装的sql，多出来的第一个and或者  
+
+      or去掉。注意：**where标签只能去掉前and或or不能去掉后and或or**
+
+      ```xml
+      <select id="getEmpList" resultType="com.xianCan.springboot.bean.Employee">
+              select * from tb_employee
+              <where>
+                  <if test="id != null">
+                      id = #{id}
+                  </if>
+                  <if test="lastName != null and lastName != ''">
+                      and last_name like #{lastName}
+                  </if>
+                  <if test="email != null and email.trim() != ''">
+                      and email = #{email}
+                  </if>
+                  <if test="gender==0 or gender==1">
+                      and gender = #{gender}
+                  </if>
+          	</where>
+      </select>
+      ```
+
+* **trim**
+
+  * trim用于截取，可以用于解决where标签不能解决的后面多出来and或or情况
+
+    * prefix：前缀，给拼串后的整个字符串加一个前缀
+    * prefixOverrides：前缀覆盖，去掉整个字符串前面多余的字符
+    * suffix：后缀，给拼串后的整个字符串加一个后缀
+    * suffixOverrides：后缀覆盖，去掉整个字符串后面多余的字符
+
+    ```xml
+    <select id="getEmpList" resultType="com.xianCan.springboot.bean.Employee">
+        select * from tb_employee
+        <trim prefix="where" suffixOverrides="and">
+            <if test="id != null">
+                id = #{id} and
+            </if>
+            <if test="lastName != null and lastName != ''">
+                last_name like #{lastName} and
+            </if>
+            <if test="email != null and email.trim() != ''">
+                email = #{email} and
+            </if>
+            <if test="gender==0 or gender==1">
+                gender = #{gender}
+            </if>
+        </trim>
+    </select>
+    ```
+
+* **choose**
+
+  * choose(when, otherwise)：分支选择，相当于带了break的switch-case
+
+    ```xml
+    <select id="getEmpList" resultType="com.xianCan.springboot.bean.Employee">
+        select * from tb_employee
+        <where>
+            <choose>
+                <when test="id != null and id != ''">
+                    id = #{id}
+                </when>
+                <when test="lastName != null and lastName != ''">
+                    last_name like #{lastName}
+                </when>
+                <!--两个when都不中，全查-->
+                <otherwise>
+                    1 = 1
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+    ```
+
+* **set**
+
+  * set标签用于更新操作，可结合if标签只更新不为空的字段，可以去掉后面多余的逗号
+
+    ```xml
+    <update id="updateEmp" parameterType="com.xianCan.springboot.bean.Employee">
+        UPDATE TB_EMPLOYEE
+        <!--set标签可以去掉多余的逗号-->
+        <set>
+            <if test="lastName != null and lastName != ''">
+                last_name = #{lastName},
+            </if>
+            <if test="email != null and email != ''">
+                email = #{email},
+            </if>
+            <if test="gender != null and gender != ''">
+                gender = #{gender}
+            </if>
+        </set>
+    </update>
+    ```
+
+  * 也可以用trim标签代替
+
+    ```xml
+    <update id="updateEmp" parameterType="com.xianCan.springboot.bean.Employee">
+        UPDATE TB_EMPLOYEE
+        <trim prefix="set" suffixOverrides=",">
+            <if test="lastName != null and lastName != ''">
+                last_name = #{lastName},
+            </if>
+            <if test="email != null and email != ''">
+                email = #{email},
+            </if>
+            <if test="gender != null and gender != ''">
+                gender = #{gender}
+            </if>
+        </trim>
+    </update>
+    ```
+
+* **foreach**
+
+  * collection：指定遍历的集合。list类型的参数会特殊处理封装在map中，map的key就叫**list**
+
+  * item：将当前遍历出的元素复制给指定的变量
+
+  * separator：每个元素之间的分隔符
+
+  * open：遍历出所有结果拼接一个开始的字符
+
+  * close：遍历出所有结果拼接一个结束的字符
+
+  * index：索引。遍历list的时候index就是索引；遍历map的时候index表示的是map的key，item就是map  
+
+    的value
+
+    ```xml
+    <select id="getEmpList" resultType="com.xianCan.springboot.bean.Employee">
+        SELECT * FROM tb_employee WHERE id IN 
+        <foreach collection="list" separator="," item="item" open="(" close=")" index="index">
+            #{item}
+        </foreach>
+    </select>
+    ```
+
+    
+
 * 
+
 * 
+
 * 
+
 * 
+
 * 
+
 * 
+
 * 
-* 
-* 
-* 
+
 * 
 
 
