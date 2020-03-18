@@ -838,17 +838,94 @@
     </select>
     ```
 
+* **foreach批量保存（mysql）**
+
+  ```java
+  int addEmps(@Param("emps")List<Employee> emps);
+  ```
+
+  ```xml
+  <insert id="addEmps">
+      INSERT INTO tb_employee (id, last_name, email, gender)
+      VALUES
+      <foreach collection="emps" item="emp" separator=",">
+          (#{id}, #{emp.lastName}, #{emp.email}, #{emp.gender})
+      </foreach>
+  </insert>
+  ```
+
+* **foreach批量保存（oracle）**
+
+  ```xml
+  <!--利用虚表 + union-->
+  <insert id="addEmps">
+      INSERT INTO tb_employee (id, last_name, email, gender)
+      <foreach collection="emps" item="emp" separator="union">
+          select #{id}, #{emp.lastName}, #{emp.email}, #{emp.gender} from dual
+      </foreach>
+  </insert>
+  ```
+
+* **两个内置参数**
+
+  * 不只是方法传递过来的参数可以被用来判断，取值。mybatis默认还有两个内置参数
+
+  * _paramater：代表整个参数
+
+    * 单个参数：_paramater就是这个参数
+    * 多个参数：参数会被封装成一个map：_paramater代表整个map
+
+  * _databaseId：如果配置了databaseIdProvider标签
+
+    * 代表当前数据库的别名，如oracle
+
+    ```xml
+    <select id="getEmpsTestInnerParameter" 		         		resultType="com.xianCan.springboot.bean.Employee">
+    	<if test="_databaseId=='mysql'">
+        	select * from employee_mysql
+            <if test="_parameter!=null">
+            	where last_name = #{_parameter.lastName}
+            </if>
+        </if>
+        <if test="_databaseId=='oracle'">
+        	select * from employee_oracle
+            <if test="_parameter!=null">
+            	where last_name = #{_parameter.lastName}
+            </if>
+        </if>
+    </select>
+    ```
+
+* **like模糊查询的几种写法**
+
+  * '%${name}%'    不推荐
+
+  * CONCAT('%', #{name}, '%')    推荐
+
+  * '%'||#{name}||'%'    推荐
+
+  * 使用bind
+
+    ```xml
+    <bind name="_username" value="'%' + _parameter.username + '%'" />
+    where name like #{_username}
+    ```
+
+* **sql标签**
+
+  * 用于抽取可重用的sql片段，方便后面引用
+
+    ```xml
+    <insert id="addEmp" parameterType="com.xianCan.springboot.bean.Employee"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO TB_EMPLOYEE <include refid="columnName"/>  VALUES 
+        (#{id}, #{lastName}, #{email}, #{gender}, #{dId})
+    </insert>
     
-
-* 
-
-* 
-
-* 
-
-* 
-
-* 
+    <sql id="columnName">
+        (ID,LAST_NAME,EMAIL,GENDER,DID)
+    </sql>
+    ```
 
 * 
 
