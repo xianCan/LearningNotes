@@ -976,7 +976,7 @@
   * 接口调用方式：基于StatementId、基于Mapper接口
 * **数据处理层**
   * 参数映射配置（ParameterHandler）：参数映射配置、参数映射解析、参数类型解析
-  * SQL解析（SqlSource、StatementHandler）：SQL语句配置、SQL语句解析、SQL语句动态生成
+  * SQL解析（StatementHandler）：SQL语句配置、SQL语句解析、SQL语句动态生成
   * SQL执行（Executor）：SimpleExecutor、BatchExecutor、ReuseExecutor
   * 结果处理和映射（ResultSetHandler）：结果映射配置、结果类型转换
 * **框架支撑层**
@@ -994,27 +994,259 @@
 
 * **Configuration对象封装了所有配置文件的详细信息**
 
-* **把配置文件的信息解析并保存在Configuration对象中返回DefaultSqlSession对象**
+* **把配置文件的信息解析并保存在Configuration对象中，返回包含Configuration的DefaultSqlSession  **
 
+  **对象**
+  
+  **注意：【MappedStatement】：代表一个增删改查的详细信息**
+  
   ![](./5_3.png)
 
+### 5.2  OpenSessionFactory获取SqlSession对象
 
+* **返回SqlSession的实现类DefaultSqlSession对象，它里面包含了Executor和Configuration，Executor**
 
+  **会在这一步被创建**
 
+![](./5_4.png)
 
+### 5.3  getMapper获取到接口的代理对象
 
+* **getMapper：使用MapperProxyFactory创建一个MapperProxy的代理对象。代理对象包含了  **
 
+  **DefaultSqlSession（Executor）**
 
+![](./5_5.png)
 
+![](./5_6.png)
 
+### 5.4  查询流程
 
+**流程图**
 
+![](./5_9.png)
 
+**时序图**
 
+![](./5_7.png)
 
+![](./5_8.png)
 
+### 5.5  Mybatis原理总结
 
+* 1、根据配置文件（全局、sql映射）初始化Configuration对象
+* 2、创建一个DefaultSqlSession对象
+  * 包含Configuration
+  * 包含Executor（根据全局配置文件中的defaultExecutorType创建出对应的Executor）
+* 3、DefaultSqlSession.getMapper()，拿到Mapper接口对应的MapperProxy
+* 4、MapperProxy里面有DefaultSqlSession
+* 5、执行增删改查方法
+  * 调用DefaultSqlSession的增删改查
+  * 最终会创建一个statementHandler对象，同时也会创建出ParameterHandler和ResultSetHandler
+  * 调用StatementHandler预编译参数以及调用ParameterHandler来设置参数值
+  * 调用StatementHandler的增删改查方法
+  * ResultSetHandler封装结果
+* **注意：**四大队向每个创建的时候都会有一个interceptorChain.pluginAll(parameterHandler)
 
+## 第六章  插件及扩展
+
+### 6.1  插件原理
+
+**在四大对象创建的时候**
+
+* 1、每个创建出来的对象不是直接返回的，而是interceptorChain.pluginAll(parameterHandler)
+
+* 2、获取到所有的Interceptor（拦截器）（插件需要实现的接口），调用interceptor.plugin(target)，  
+
+  返回target包装后的对象
+
+* 3、插件机制，我们可以使用个插件为目标对象创建一个代理对象：AOP（面向切面）。我们的插件可以  
+
+  为四大对象创建出代理对象，代理对象就可以拦截到四对象的每一个执行
+
+### 6.2  自定义插件demo
+
+```java
+package com.xianCan.springboot.mapper;
+
+import org.apache.ibatis.executor.statement.StatementHandler;
+import org.apache.ibatis.plugin.Interceptor;
+import org.apache.ibatis.plugin.Intercepts;
+import org.apache.ibatis.plugin.Invocation;
+import org.apache.ibatis.plugin.Signature;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.reflection.SystemMetaObject;
+
+import java.util.Properties;
+
+/**
+ * @author xianCan
+ * @date 2020/3/21 16:19
+ */
+
+/**
+ * 告诉Mybatis当前插件用来拦截哪个对象的哪个方法
+ */
+@Intercepts({
+        @Signature(type = StatementHandler.class, method = "parameterize", args=java.sql.Statement.class)
+})
+public class MyPlugin implements Interceptor {
+
+    /**
+     * 拦截目标对象的目标方法的执行
+     * @param invocation
+     * @return
+     * @throws Throwable
+     */
+    @Override
+    public Object intercept(Invocation invocation) throws Throwable {
+        //动态的改变一下sql参数，以前查询1号员工，实际从数据库查询3号员工
+        //拿到StatementHandler里面的ParameterHandler里面的parameterObject
+        Object target = invocation.getTarget();
+        //拿到target的元数据
+        MetaObject metaObject = SystemMetaObject.forObject(target);
+        metaObject.setValue("parameterHandler.parameterObject", 3);
+        return invocation.proceed();
+    }
+
+    /**
+     * 包装目标对象，为目标对象创建一个代理对象
+     * @param o
+     * @return
+     */
+    @Override
+    public Object plugin(Object o) {
+        return null;
+    }
+
+    @Override
+    public void setProperties(Properties properties) {
+
+    }
+}
+
+```
+
+```xml
+<!--指定一下拦截器插件-->
+<plugins>
+    <plugin interceptor="com.xianCan.springboot.mapper.MyPlugin">
+        <!--可以设置一些值-->
+        <property name="username" value="xianCan"/>
+    </plugin>
+</plugins>
+```
+
+### 6.3  分页插件PageHelper
+
+* PageHelper地址
+
+  ```
+  https://github.com/pagehelper/Mybatis-PageHelper
+  ```
+
+* 添加依赖
+
+  ```xml
+  <dependency>
+      <groupId>com.github.pagehelper</groupId>
+      <artifactId>pagehelper</artifactId>
+      <version>5.1.11</version>
+  </dependency>
+  ```
+
+* 例一：在你需要进行分页的 MyBatis 查询方法前调用 `PageHelper.startPage` 静态方法即可，紧跟在这个  
+
+  方法后的第一个**MyBatis 查询方法**会被进行分页。
+
+  ```java
+  //获取第1页，10条内容，默认查询总数count
+  PageHelper.startPage(1, 10);
+  //紧跟着的第一个select方法会被分页
+  List<User> list = userMapper.selectIf(1);
+  assertEquals(2, list.get(0).getId());
+  assertEquals(10, list.size());
+  //分页时，实际返回的结果list类型是Page<E>，如果想取出分页信息，需要强制转换为Page<E>
+  assertEquals(182, ((Page) list).getTotal());
+  ```
+
+* 例二：
+
+  ```java
+  //request: url?pageNum=1&pageSize=10
+  //支持 ServletRequest,Map,POJO 对象，需要配合 params 参数
+  PageHelper.startPage(request);
+  //紧跟着的第一个select方法会被分页
+  List<User> list = userMapper.selectIf(1);
+  
+  //后面的不会被分页，除非再次调用PageHelper.startPage
+  List<User> list2 = userMapper.selectIf(null);
+  //list1
+  assertEquals(2, list.get(0).getId());
+  assertEquals(10, list.size());
+  //分页时，实际返回的结果list类型是Page<E>，如果想取出分页信息，需要强制转换为Page<E>，
+  //或者使用PageInfo类（下面的例子有介绍）
+  assertEquals(182, ((Page) list).getTotal());
+  //list2
+  assertEquals(1, list2.get(0).getId());
+  assertEquals(182, list2.size());
+  ```
+
+* 例三：PageInfo的用法
+
+  ```java
+  //获取第1页，10条内容，默认查询总数count
+  PageHelper.startPage(1, 10);
+  List<User> list = userMapper.selectAll();
+  //用PageInfo对结果进行包装
+  PageInfo page = new PageInfo(list, 5)//5为传入要连续显示多少页;
+  //测试PageInfo全部属性
+  //PageInfo包含了非常全面的分页属性
+  int[] nums = page.getNavigatepageNums();//获得连续显示的页码，如当前在第1页，返回12345，
+  //如当前在第5页，返回34567
+  assertEquals(1, page.getPageNum());
+  assertEquals(10, page.getPageSize());
+  assertEquals(1, page.getStartRow());
+  assertEquals(10, page.getEndRow());
+  assertEquals(183, page.getTotal());
+  assertEquals(19, page.getPages());
+  assertEquals(1, page.getFirstPage());
+  assertEquals(8, page.getLastPage());
+  assertEquals(true, page.isFirstPage());
+  assertEquals(false, page.isLastPage());
+  assertEquals(false, page.isHasPreviousPage());
+  assertEquals(true, page.isHasNextPage());
+  ```
+
+### 6.4  批量BatchExecutor
+
+* 之前使用批量插入的时候，都是使用foreach标签将sql拼接，会出现sql超长的情况。这时候我们可以使用全  
+
+  局配置中的ExecutorType中将类型定为batch，但这样会造成全部session都变成batch类型，这样做的代价  
+
+  显得非常大，因此我们可以在获取openSession的时候定义成batch形式  
+
+  ```java
+  @Test
+  public void test() throws IOException {
+      String resource = "mybatis/mybatis-config.xml";
+      InputStream resourceAsStream = Resources.getResourceAsStream(resource);
+      SqlSessionFactory sessionFactory = new SqlSessionFactoryBuilder().build(resourceAsStream);
+      SqlSession sqlSession = sessionFactory.openSession(ExecutorType.BATCH);
+  
+      EmployeeMapper mapper = sqlSession.getMapper(EmployeeMapper.class);
+      List<Employee> list = new ArrayList<>();
+      mapper.addEmps(list);
+  }
+  ```
+
+* 批量：预编译sql一次 ==》设置参数多次 ==》执行1次
+
+* 非批量：预编译sql多次 ==》设置参数多次 ==》执行多次
+
+### 6.5  存储过程
+
+### 6.6  自定义类型处理器TypeHandler
 
 
 
