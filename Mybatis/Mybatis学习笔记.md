@@ -261,7 +261,7 @@
 
 * **可以配置多种mybatis环境变量，default指定使用某种环境，可以达到快速切换环境的目的**
 
-* **environments**：有一个id属性，可以用于指定当前环境id
+* **environment**：有一个id属性，可以用于指定当前环境id
 
   * **transactionManager**：事务管理器
 
@@ -273,7 +273,7 @@
 
   * **dataSource**：数据源
 
-    * **type**：数据源类型，UNPOOLED(UnpooledDataSourceFactory)|  
+    * **type**：数据源类型，UNPOOLED(UのnpooledDataSourceFactory)|  
 
       |POOLED(PooledDataSourceFactory)（连接池技术）|JNDI(JndiDataSourceFactory)  
 
@@ -389,7 +389,7 @@
 
   ------
 
-  * 如果多个参数不是业务模型中的数据，没有赌赢的pojo，可以传入map代替
+  * 如果多个参数不是业务模型中的数据，没有对应的pojo，可以传入map代替
 
     #{key}：取出map中的值
 
@@ -402,7 +402,7 @@
     public Employee getEmp(Integer id, @Param("e")Employee emp)
     //取值：id==》#{param1}		lastName==》#{param2.lastname/e.lastName}
         
-    /*特别注意：如果是Collection(List、Set)类型或者是数组也会特殊处理，就是把传入的List或者数组		封装在map中
+    /*特别注意：如果是Collection(List、Set)类型或者是数组也会特殊处理，就是把传入的List或者数组封装在map中
         key：Collection(collection)，如果是List还可以使用这个key(list)、数组key(array)
     */
     public Employee getEmpById(List<Integer> ids)
@@ -415,7 +415,7 @@
   Employee getEmpById(@Param("id") Integer id, @Param("lastName") String lastName);
   ```
 
-  * 对于上述方法，会进入到ParamNameResolver这个类里面处理ParamNameResolver里面有一个有参  
+  * 对于上述方法，会进入到ParamNameResolver这个类里面处理，ParamNameResolver里面有一个有参  
 
     构造器，最终会得到一个names的SortedMap<Integer, String> 。也就是names:{0=id,1=lastName}
 
@@ -425,8 +425,11 @@
 
     ```java
     public ParamNameResolver(Configuration config, Method method) {
+        	// 获取参数列表中每个参数的类型
             Class<?>[] paramTypes = method.getParameterTypes();
+        	// 获取参数列表上的注解  @Param
             Annotation[][] paramAnnotations = method.getParameterAnnotations();
+         	// 该集合用于记录参数索引与参数名称的对应关系
             SortedMap<Integer, String> map = new TreeMap();
             int paramCount = paramAnnotations.length;
     
@@ -439,26 +442,28 @@
                     for(int var11 = 0; var11 < var10; ++var11) {
                         Annotation annotation = var9[var11];
                         if (annotation instanceof Param) {
+                             // 获取@Param注解指定的参数名称
                             this.hasParamAnnotation = true;
                             name = ((Param)annotation).value();
                             break;
                         }
                     }
-    
+    				//没有@Param注解的话 执行下面逻辑
                     if (name == null) {
+    	/*参数实际名称，其实这个值默认就是true，具体可以查看Configuration类中的该属性值，当然也可以在配置文件进行配置关闭。如果jdk处于1.8版本，且编译时带上了-parameters 参数，那么获取的就是实际的参数名，如methodA(String username)获取的就是username,否则获取的就是args0，后面的数字就是参数所在位置*/
                         if (config.isUseActualParamName()) {
                             name = this.getActualParamName(method, paramIndex);
                         }
-    
+    					//useActualParamName == false是  即 name="0" ...
+            			//use the parameter index as the name ("0", "1", ...)
+            			//使用参数的索引作为其名称
                         if (name == null) {
                             name = String.valueOf(map.size());
                         }
                     }
-    
                     map.put(paramIndex, name);
                 }
             }
-    
             this.names = Collections.unmodifiableSortedMap(map);
         }
     ```
@@ -501,7 +506,6 @@
                             param.put(genericParamName, args[((Integer)entry.getKey()).intValue()]);
                         }
                     }
-    
                     return param;//最终返回结果：{id=1, lastName=Tom, param1=1, param2=Tom}
                 }
             } else {
@@ -599,21 +603,19 @@
     </select>
     ```
 
-  * 多条记录封装成一个map：Map<Integer,  Employee>，键为主键id，值为对应的  
-
-    javaBean对象
+  * 多条记录封装成一个map：Map<Integer,  Employee>，键为主键id，值为对应的javaBean对象
 
     ```java
-    @MapKey("id")
+@MapKey("id")
     Map<Integer, Employee> getEmpMap(String id)
     ```
-
+    
     ```xml
-    <select id="getEmpMap" resultType="com.xianCan.springboot.bean.Employee">
+<select id="getEmpMap" resultType="com.xianCan.springboot.bean.Employee">
     	select * from tb_employee where id =#{id}
     </select>
     ```
-
+  
 * **resultMap**
 
   * 自定义某个javaBean的封装规则
