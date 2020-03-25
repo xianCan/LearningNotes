@@ -92,7 +92,7 @@
 
   HTTP协议里面，4个代表操作方式的动词：GET、POST、PUT、DELETE。他们分别对应四种基本操作
 
-### 1.4  请求处理方法签名
+### 1.4  请求处理参数类
 
 * SpringMVC通过分析处理方法的签名，将HTTP请求信息绑定到处理方法的相应入参中
 
@@ -135,7 +135,33 @@
   }
   ```
 
-  
+* **使用Servlet原生API**
 
+  * **HttpServletRequest**
+  * **HttpServletResponse**
+  * **HttpSession**
+  * **java.security.Principal**
+  * **Locale**
+  * **InpusStream**
+  * **OutputStream**
+  * **Reader**
+  * **Writer**
 
+### 1.5  处理模型数据
+
+* SpringMVC提供了以上几种途径输出模型数据
+
+  * **ModelAndView**：处理方法返回值类型为ModelAndView时，方法体即可通过该对象添加模型数据；  
+
+    其中可以包含视图和模型信息，SpringMVC会把ModelAndView的model中数据放入到request域中
+
+  * **Map 及 Model**：入参为org.springframework.ui.Model、org.springframework.ui.ModelMap或  
+
+    java.util.Map时，处理方法返回时，Map中的数据会自动添加到模型中
+
+  * **@SessionAttributes**：将模型中的某个属性暂存到HttpSession中，一边多个请求之间可以共享这  
+
+    个属性
+
+  * **@ModelAttribute**：方法入参标注该注解后，入参的对象就会放到数据模型中
 
