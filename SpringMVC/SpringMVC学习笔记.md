@@ -10,7 +10,7 @@
 
   * 类定义处：提供初步的请求映射信息。相当于WEB应用的根目录
 
-  * 方发处：提供进一步的细分映射信息。相当于类定义出的URL。若类定义处未标注@RequestMapping，  
+  * 方法处：提供进一步的细分映射信息。相当于类定义出的URL。若类定义处未标注@RequestMapping，  
 
     则方发处标记的URL相对于WEB应用的根目录
 
@@ -28,28 +28,41 @@
   }
   ```
 
-* @RequestMapping除了可以使用请求URL映射请求外，还可以使用请求方法、请求参数及请求头映射请求
+* @RequestMapping的其他属性
 
-* @RequestMapping的**value**、**method**、**params**及**heads**分别表示请求URL、请求方法、请求参数及请求头  
+  * **value**：限定映射路径
 
-  的映射条件，他们之间是与的关系，联合使用多个条件可让请求映射更加精确化
+  * **method**：限定请求方式：常用GET、POST
 
-* params和headers支持简单的表达式：
+  * **params**：限定请求参数
 
-  * param1：表示请求必须包含名为param1的请求参数
+    * param1：表示请求必须包含名为param1的请求参数
 
-  * !param1：表示请求不能包含名为param1的请求参数
+    * !param1：表示请求不能包含名为param1的请求参数
 
-  * param1 != value1：表示请求包含名为param1的请求参数，但其值不能为value1
+    * param1 != value1：表示请求包含名为param1的请求参数，但其值不能为value1
 
-  * {"param1=value1", "param2"}：请求必须包含名为param1和param2的两个请求参数，且param1参数  
+    * {"param1=value1", "param2"}：请求必须包含名为param1和param2的两个请求参数，且param1  
 
-    的值必须为value1
+      参数的值必须为value1
+
+      ```Java
+      @RequestMapping(value = "/helloworld", params = {"!param1"})
+      public String helloWorld(){
+          return "";
+      }
+      ```
+
+  * **heads**：限定请求头
+
+  * **consumes**：只接受内容类型是哪种的请求，规定请求头中的Content-Type
+
+  * **produces**：告诉浏览器返回的内容类型是什么，如响应头中加上Content-Type:text/html;charset=utf-8
 
 * @RequestMapping支持Ant通配符映射
 
   * ?：问号匹配文件名中的一个字符
-  * *：匹配文件名中的任意字符
+  * *：匹配文件名中的多个字符、或者匹配一层路径
   * **：匹配多层路径
 
 ### 1.2  获取Servlet原生API
@@ -62,17 +75,17 @@
 
   * **HttpSession**
 
-  * **java.security.Principal**
+  * **java.security.Principal**：安全协议相关的
 
-  * **Locale**
+  * **Locale**：国际化有关的区域信息对象
 
-  * **InpusStream**
+  * **InpusStream**：httpServletRequest.getInputStream()
 
-  * **OutputStream**
+  * **OutputStream**：httpServletResponse.getOutputStream()
 
-  * **Reader**
+  * **Reader**：httpServletRequest.getReader()
 
-  * **Writer**
+  * **Writer**：httpServletResponse.getWriter()
 
     ```java
     @RequestMapping("/helloworld")
@@ -98,18 +111,6 @@
     }
     ```
 
-* **@RequestBody**：用于获取请求体内容，直接使用得到的是k-v&k-v...结构的数据，不能用于get方法
-
-  * required：是否必须有请求体，默认值true
-
-    ```java
-    @RequestMapping("/helloworld")
-    public String helloWorld(@RequestBody Employee employee){
-        System.out.println(employee);
-        return "";
-    }
-    ```
-
 * **@PathVariable**：可以将URL中占位符参数绑定到控制器处理方法的入参中：URL中的{xxx}占位符可以通过  
 
   @PathVariable("xxx")绑定到操作方法的入参中
@@ -122,7 +123,19 @@
   }
   ```
 
-* **@RequestHeader**：用于获取请求头信息
+* **@RequestBody**：用于获取请求体内容，直接使用得到的是k-v&k-v...结构的数据，不能用于get方法
+
+  * required：是否必须有请求体，默认值true
+
+    ```java
+    @RequestMapping("/helloworld")
+    public String helloWorld(@RequestBody Employee employee){
+        System.out.println(employee);
+        return "";
+    }
+    ```
+
+* **@RequestHeader**：获取请求头中某个key的值，如果请求头中没有这个值就报错
 
   ```java
   @RequestMapping("/hello2")
@@ -191,7 +204,56 @@
   }
   ```
 
-### 1.4  REST风格
+### 1.4  乱码解决方法
+
+* **请求乱码**
+
+  * **GET请求**：修改tomcat的server.xml，在8080端口处加入  URIEncoding=UTF-8
+
+  * **POST请求**：原理是设置过滤器解决
+
+    * **xml配置文件方式**
+
+      ```xml
+      <filter>
+          <filter-name>CharacterEncodingFilter</filter-name>
+          <filter-class>org.springframework.web.filter.CharacterEncodingFilter
+          </filter-class>
+          <init-param>
+          	<param-name>encoding</param-name>
+              <param-value>UTF-8</param-value>
+          </init-param>
+          <init-param>
+              <param-name>forceRequestEncoding</param-name>
+              <param-value>true</param-value>
+          </init-param>
+          <init-param>
+              <param-name>forceResponseEncoding</param-name>
+              <param-value>true</param-value>
+          </init-param>
+      </filter>
+      <filter-mapping>
+      	<filter-name>CharacterEncodingFilter</filter-name>
+          <url-pattern>/*</url-pattern>
+      </filter-mapping>
+      ```
+
+    * **springboot配置文件方式**
+
+      ```properties
+      spring.http.encoding.force=true
+      spring.http.encoding.charset=UTF-8
+      spring.http.encoding.enabled=true
+      server.tomcat.uri-encoding=UTF-8
+      ```
+
+* **响应乱码**
+
+  ```java
+  response.setContentType("text/html;charset=utf-8");
+  ```
+
+### 1.5  REST风格
 
 * **REST**：即Representaional  State  Transfer。（资源）表现层状态转化，目前最流行的一种互联网软件架  
 
