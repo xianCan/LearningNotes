@@ -155,54 +155,6 @@
   }
   ```
 
-* **@ModelAttribute**：方法入参标注该注解后，入参的对象就会放到数据模型中，有点像拦截器。如果某  
-
-  个方法被@ModelAttribute注解修饰了，会先执行被@ModelAttribute注解修饰的方法，再执行被  
-
-  @RequestMapping注解修饰的方法，而且@ModelAttribute注解修饰的方法的参数值可以传递到  
-
-  @RequestMapping注解修饰的方法
-
-  ```java
-  @RestController
-  public class SpringMVCTest {
-  
-      @ModelAttribute
-      public void getModelAttribute(@RequestParam(value = "id", required = false)Integer id, Map<String, Object> map){
-          //模拟从数据库拿数据
-          Employee employee = new Employee(1, "xianCan", 1, "xianCan@qq.com", 1);
-          map.put("employee", employee);
-  
-      }
-  
-      @RequestMapping("/helloworld")
-      //上述方法的employee可以传递到本方法的employee形参
-      public String helloWorld(Employee employee){
-          System.out.println(employee);
-          return "";
-      }
-  }
-  ```
-
-* **@SessionAttributes**：若希望在多个请求之间共用某个模型属性数据，将模型中的某个属性暂存  
-
-  到HttpSession中，一边多个请求之间可以共享这个属性
-
-  ```java
-  @RestController
-  //这个注解只能放在类上面，可通过指定属性名放到会话中的属性外，也可以通过指定对象类型
-  @SessionAttributes(value = {"employee"}, types = {String.class})
-  public class SpringMVCTest {
-  
-      @RequestMapping("/helloworld")
-      public String helloWorld(Map<String, Object> map){
-          Employee employee = new Employee(1, "xianCan", 1, "xianCan@qq.com", 1);
-          map.put("employee", employee);
-          map.put("name", "caizw");
-          return "";
-      }
-  }
-  ```
 
 ### 1.4  乱码解决方法
 
@@ -277,9 +229,135 @@
 
   HTTP协议里面，4个代表操作方式的动词：GET、POST、PUT、DELETE。他们分别对应四种基本操作
 
-## 第二章  响应数据和结果返回值
+## 第二章  数据输出
 
-### 2.1  返回值是字符串
+### 2.1 传入Map、Model、ModelMap
+
+* **传入Map**：对应的值只存在request域中
+
+  ```java
+  @RequestMapping("/helloworld")
+  public String helloworld(Map<String, Object> map){
+      map.put("msg", "你好");
+      return "success";
+  }
+  ```
+
+* **传入Model**：对应的值只存在request域中
+
+  ```java
+  @RequestMapping("/helloworld")
+  public String helloworld(Model model){
+      model.addAttribute("msg", "你好坏");
+      return "success";
+  }
+  ```
+
+* **传入ModelMap**：对应的值只存在request域中
+
+  ```java
+  @RequestMapping("/helloworld")
+  public String helloworld(ModelMap modelMap){
+      modelMap.addAttribute("msg", "你好棒");
+      return "success";
+  }
+  ```
+
+* **三者关系**：无论是Map、Model还是ModelMap，最终都是BindingAwareModelMap在工作，相当于给  
+
+  BindingAwareModelMap中保存的东西都会被保存在请求域中
+
+  ​					Map(interface(jdk))											Model(interface(spring))
+
+  ​								||														            //							
+
+  ​								||																 //
+
+  ​							     \/															   //	
+
+  ​						ModelMap(class)										  //
+
+  ​									\\\\													   //
+
+  ​										\\\\												//	
+
+  ​													ExtendedModelMap
+
+  ​																	||
+
+  ​																	 \/
+
+  ​													BindingAwareModelMap
+
+### 2.2 返回值是ModelAndView
+
+* 既包含视图信息（页面地址）也包含模型数据（页面数据），数据也放在请求域中
+
+  ```java
+  @RequestMapping("/helloworld")
+  public ModelAndView helloWorld(){
+      ModelAndView mv = new ModelAndView();
+      Employee employee = new Employee(1, "xianCan", 1, "xianCan@qq.com", 1);
+      mv.addObject("employee", employee);
+      mv.setViewName("success");
+      return mv;
+  }
+  ```
+
+### 2.3 将数据存到Session中
+
+* **@SessionAttributes**：若希望在多个请求之间共用某个模型属性数据，将模型中的某个属性暂存  
+
+  到HttpSession中，一边多个请求之间可以共享这个属性
+
+  ```java
+  @RestController
+  //这个注解只能放在类上面，可通过指定属性名放到会话中的属性外，也可以通过指定对象类型
+  @SessionAttributes(value = {"employee"}, types = {String.class})
+  public class SpringMVCTest {
+  
+      @RequestMapping("/helloworld")
+      public String helloWorld(Map<String, Object> map){
+          Employee employee = new Employee(1, "xianCan", 1, "xianCan@qq.com", 1);
+          map.put("employee", employee);
+          map.put("name", "caizw");
+          return "";
+      }
+  }
+  ```
+
+### 2.4 @ModelAttribute
+
+* **@ModelAttribute**：方法入参标注该注解后，入参的对象就会放到数据模型中，有点像拦截器。如果某  
+
+  个方法被@ModelAttribute注解修饰了，会先执行被@ModelAttribute注解修饰的方法，再执行被  
+
+  @RequestMapping注解修饰的方法，而且@ModelAttribute注解修饰的方法的参数值可以传递到  
+
+  @RequestMapping注解修饰的方法
+
+  ```java
+  @RestController
+  public class SpringMVCTest {
+  
+      @ModelAttribute
+      public void getModelAttribute(@RequestParam(value = "id", required = false)Integer id, Map<String, Object> map){
+          //模拟从数据库拿数据
+          Employee employee = new Employee(1, "xianCan", 1, "xianCan@qq.com", 1);
+          map.put("employee", employee);
+  
+      }
+  
+      @RequestMapping("/helloworld")
+      //上述方法的employee可以传递到本方法的employee形参
+      public String helloWorld(Employee employee){
+          System.out.println(employee);
+          return "";
+      }
+  }
+  ```
+
+### 2.5  返回值是字符串
 
 * 返回字符串可以指定逻辑视图名，通过视图解析器解析为物理视图地址
 
@@ -292,7 +370,7 @@
   }
   ```
 
-### 2.2  返回值为void
+### 2.6  返回值为void
 
 * 一般需要自己跳转页面
 
@@ -306,22 +384,7 @@
   }
   ```
 
-### 2.3  返回值是ModelAndView
-
-* ModelAndView对象是SpringMVC提供的一个对象，可以用来调整具体的JSP视图
-
-  ```java
-  @RequestMapping("/helloworld")
-  public ModelAndView helloWorld(){
-      ModelAndView mv = new ModelAndView();
-      Employee employee = new Employee(1, "xianCan", 1, "xianCan@qq.com", 1);
-      mv.addObject("employee", employee);
-      mv.setViewName("success");
-      return mv;
-  }
-  ```
-
-### 2.4  使用forward和redirect进行页面跳转
+### 2.7  使用forward和redirect进行页面跳转
 
 * 使用关键字的方法进行转发
 
@@ -343,13 +406,13 @@
   }
   ```
 
-### 2.5  @ResponseBody响应json数据
+### 2.8  @ResponseBody响应json数据
 
 * 加入@ResponseBody或者@RestController注解后，会自动把返回值转为json字符串，并且不再使用视图解  
 
   析器，单纯的返回数据
 
-### 2.6  SpringMVC实现文件上传
+### 2.9  SpringMVC实现文件上传
 
 * **文件上传的必要前提**
 
