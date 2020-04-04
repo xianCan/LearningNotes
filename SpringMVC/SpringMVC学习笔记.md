@@ -384,35 +384,13 @@
   }
   ```
 
-### 2.7  使用forward和redirect进行页面跳转
-
-* 使用关键字的方法进行转发
-
-  ```java
-  @RequestMapping("/helloworld")
-  public String helloWorld(){
-      //请求的转发
-      return "forward:/success.jsp";
-  }
-  ```
-
-* 使用关键字的方法进行重定向
-
-  ```java
-  @RequestMapping("/helloworld")
-  public String helloWorld(){
-      //重定向
-      return "redirect:/success.jsp";
-  }
-  ```
-
-### 2.8  @ResponseBody响应json数据
+### 2.7  @ResponseBody响应json数据
 
 * 加入@ResponseBody或者@RestController注解后，会自动把返回值转为json字符串，并且不再使用视图解  
 
   析器，单纯的返回数据
 
-### 2.9  SpringMVC实现文件上传
+### 2.8  SpringMVC实现文件上传
 
 * **文件上传的必要前提**
 
@@ -637,7 +615,267 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
   }
   ```
 
-### 3.5  SpringMVC的九大组件
+### 3.5  handle()执行目标方法
+
+* 1、首先，方法执行的第一个入口在DispatcherServlet类中doDispatch()方法中
+
+  ```java
+  HandlerAdapter ha;...
+  mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
+  ```
+
+* 2、接着，HandlerAdapter的handle方法由其抽象子类AbstractHandlerMethodAdapter进行重写。然后调  
+
+  类中方法handleInternal()方法
+
+  ```java
+  @Nullable
+  public final ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+      return this.handleInternal(request, response, (HandlerMethod)handler);
+  }
+  
+  @Nullable
+  protected abstract ModelAndView handleInternal(HttpServletRequest var1, HttpServletResponse var2, HandlerMethod var3) throws Exception;
+  ```
+
+* 3、然后，抽象方法handleInternal由AbstractHandlerMethodAdapter的子类  
+
+  RequestMappingHandlerAdapter进行重写，进行关键方法invokeHandlerMethod()
+
+  ```java
+  protected ModelAndView handleInternal(HttpServletRequest request, HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
+      this.checkRequest(request);
+      ModelAndView mav;
+      //根据需要是否进行同步操作
+      if (this.synchronizeOnSession) {
+          HttpSession session = request.getSession(false);
+          if (session != null) {
+              Object mutex = WebUtils.getSessionMutex(session);
+              synchronized(mutex) {
+                  //核心重点：执行方法
+                  mav = this.invokeHandlerMethod(request, response, handlerMethod);
+              }
+          } else {
+              //核心重点：执行方法
+              mav = this.invokeHandlerMethod(request, response, handlerMethod);
+          }
+      } else {
+          //核心重点：执行方法
+          mav = this.invokeHandlerMethod(request, response, handlerMethod);
+      }
+  
+      if (!response.containsHeader("Cache-Control")) {
+          if (this.getSessionAttributesHandler(handlerMethod).hasSessionAttributes()) {
+              this.applyCacheSeconds(response, this.cacheSecondsForSessionAttributeHandlers);
+          } else {
+              this.prepareResponse(response);
+          }
+      }
+  
+      return mav;
+  }
+  ```
+
+* 4、执行处理器方法：核心方法
+
+  ```java
+  @Nullable
+  protected ModelAndView invokeHandlerMethod(HttpServletRequest request, HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
+      ServletWebRequest webRequest = new ServletWebRequest(request, response);
+  
+      ModelAndView var15;
+      try {
+          //创建@InitBinder注解方法的工厂类，进行缓存
+          WebDataBinderFactory binderFactory = this.getDataBinderFactory(handlerMethod);
+          //创建@ModelAttribute @ControlAdvice注解方法工厂并缓存
+          ModelFactory modelFactory = this.getModelFactory(handlerMethod, binderFactory);
+          ServletInvocableHandlerMethod invocableMethod = this.createInvocableHandlerMethod(handlerMethod);
+          if (this.argumentResolvers != null) {
+              invocableMethod.setHandlerMethodArgumentResolvers(this.argumentResolvers);
+          }
+  
+          if (this.returnValueHandlers != null) {
+              invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);
+          }
+  
+          invocableMethod.setDataBinderFactory(binderFactory);
+          invocableMethod.setParameterNameDiscoverer(this.parameterNameDiscoverer);
+          //创建结果容器并初始化一些参数
+          ModelAndViewContainer mavContainer = new ModelAndViewContainer();
+          mavContainer.addAllAttributes(RequestContextUtils.getInputFlashMap(request));
+          //执行@ModelAttribute注解的方法，将结果放到结果容器中
+          modelFactory.initModel(webRequest, mavContainer, invocableMethod);
+         mavContainer.setIgnoreDefaultModelOnRedirect(this.ignoreDefaultModelOnRedirect);
+          //一些异步的操作
+          AsyncWebRequest asyncWebRequest = WebAsyncUtils.createAsyncWebRequest(request, response);
+          asyncWebRequest.setTimeout(this.asyncRequestTimeout);
+          WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+          asyncManager.setTaskExecutor(this.taskExecutor);
+          asyncManager.setAsyncWebRequest(asyncWebRequest);
+          asyncManager.registerCallableInterceptors(this.callableInterceptors);
+          asyncManager.registerDeferredResultInterceptors(this.deferredResultInterceptors);
+          Object result;
+          if (asyncManager.hasConcurrentResult()) {
+              result = asyncManager.getConcurrentResult();
+              mavContainer = (ModelAndViewContainer)asyncManager.getConcurrentResultContext()[0];
+              asyncManager.clearConcurrentResult();
+              LogFormatUtils.traceDebug(this.logger, (traceOn) -> {
+                  String formatted = LogFormatUtils.formatValue(result, !traceOn.booleanValue());
+                  return "Resume with async result [" + formatted + "]";
+              });
+              invocableMethod = invocableMethod.wrapConcurrentResult(result);
+          }
+  		//继续执行方法
+          invocableMethod.invokeAndHandle(webRequest, mavContainer, new Object[0]);
+          if (asyncManager.isConcurrentHandlingStarted()) {
+              result = null;
+              return (ModelAndView)result;
+          }
+  		//返回值
+          var15 = this.getModelAndView(mavContainer, modelFactory, webRequest);
+      } finally {
+          webRequest.requestCompleted();
+      }
+  
+      return var15;
+  }
+  ```
+
+* 5、invokeAndHandle方法
+
+  ```java
+  public void invokeAndHandle(ServletWebRequest webRequest, ModelAndViewContainer mavContainer, Object... providedArgs) throws Exception {
+      //执行方法，获取返回值
+      Object returnValue = this.invokeForRequest(webRequest, mavContainer, providedArgs);
+      this.setResponseStatus(webRequest);
+      if (returnValue == null) {
+          if (this.isRequestNotModified(webRequest) || this.getResponseStatus() != null || mavContainer.isRequestHandled()) {
+              this.disableContentCachingIfNecessary(webRequest);
+              mavContainer.setRequestHandled(true);
+              return;
+          }
+      } else if (StringUtils.hasText(this.getResponseStatusReason())) {
+          mavContainer.setRequestHandled(true);
+          return;
+      }
+  
+      mavContainer.setRequestHandled(false);
+      Assert.state(this.returnValueHandlers != null, "No return value handlers");
+  
+      try {
+          //处理返回值，封装结果集
+          this.returnValueHandlers.handleReturnValue(returnValue, this.getReturnValueType(returnValue), mavContainer, webRequest);
+      } catch (Exception var6) {
+          if (this.logger.isTraceEnabled()) {
+              this.logger.trace(this.formatErrorForReturnValue(returnValue), var6);
+          }
+  
+          throw var6;
+      }
+  }
+  ```
+
+* 6、invokeForRequest方法
+
+  ```java
+  @Nullable
+  public Object invokeForRequest(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer, Object... providedArgs) throws Exception {
+      //处理参数
+      Object[] args = this.getMethodArgumentValues(request, mavContainer, providedArgs);
+      if (this.logger.isTraceEnabled()) {
+          this.logger.trace("Arguments: " + Arrays.toString(args));
+      }
+  	//反射执行方法
+      return this.doInvoke(args);
+  }
+  ```
+
+* 7、getMethodArgumentValues方法处理参数
+
+  ```java
+  protected Object[] getMethodArgumentValues(NativeWebRequest request, @Nullable ModelAndViewContainer mavContainer, Object... providedArgs) throws Exception {
+      MethodParameter[] parameters = this.getMethodParameters();
+      if (ObjectUtils.isEmpty(parameters)) {
+          return EMPTY_ARGS;
+      } else {
+          Object[] args = new Object[parameters.length];
+  		//遍历方法的所有参数
+          for(int i = 0; i < parameters.length; ++i) {
+              MethodParameter parameter = parameters[i];
+              parameter.initParameterNameDiscovery(this.parameterNameDiscoverer);
+              args[i] = findProvidedArgument(parameter, providedArgs);
+              if (args[i] == null) {
+                  //这块是比那里预置的参数解析器，就是前面说的责任链模式
+                  if (!this.resolvers.supportsParameter(parameter)) {
+                      throw new IllegalStateException(formatArgumentError(parameter, "No suitable resolver"));
+                  }
+  
+                  try {
+                      //由找到的参数解析器，来解析参数
+                      args[i] = this.resolvers.resolveArgument(parameter, mavContainer, request, this.dataBinderFactory);
+                  } catch (Exception var10) {
+                      if (this.logger.isDebugEnabled()) {
+                          String exMsg = var10.getMessage();
+                          if (exMsg != null && !exMsg.contains(parameter.getExecutable().toGenericString())) {
+                              this.logger.debug(formatArgumentError(parameter, exMsg));
+                          }
+                      }
+  
+                      throw var10;
+                  }
+              }
+          }
+  
+          return args;
+      }
+  }
+  ```
+
+* 8、resolvers.resolveArgument()找到对应的参数解析器来解析参数
+
+  ```java
+  @Nullable
+  public Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer, NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory) throws Exception {
+      //根据不同的参数获取不同的参数解析器
+      HandlerMethodArgumentResolver resolver = this.getArgumentResolver(parameter);
+      if (resolver == null) {
+          throw new IllegalArgumentException("Unsupported parameter type [" + parameter.getParameterType().getName() + "]. supportsParameter should be called first.");
+      } else {
+          //解析参数
+          return resolver.resolveArgument(parameter, mavContainer, webRequest, binderFactory);
+      }
+  }
+  ```
+
+* 9、doInvoke()方法
+
+  ```java
+  @Nullable
+  protected Object doInvoke(Object... args) throws Exception {
+      ReflectionUtils.makeAccessible(this.getBridgedMethod());
+  
+      try {
+          return this.getBridgedMethod().invoke(this.getBean(), args);
+      } catch (IllegalArgumentException var4) {
+          this.assertTargetBean(this.getBridgedMethod(), this.getBean(), args);
+          String text = var4.getMessage() != null ? var4.getMessage() : "Illegal argument";
+          throw new IllegalStateException(this.formatInvokeError(text, args), var4);
+      } catch (InvocationTargetException var5) {
+          Throwable targetException = var5.getTargetException();
+          if (targetException instanceof RuntimeException) {
+              throw (RuntimeException)targetException;
+          } else if (targetException instanceof Error) {
+              throw (Error)targetException;
+          } else if (targetException instanceof Exception) {
+              throw (Exception)targetException;
+          } else {
+              throw new IllegalStateException(this.formatInvokeError("Invocation failure", args), targetException);
+          }
+      }
+  }
+  ```
+
+### 3.6  SpringMVC的九大组件
 
 ```java
 /*文件上传解析器*/
@@ -668,7 +906,7 @@ private FlashMapManager flashMapManager;
 private List<ViewResolver> viewResolvers;
 ```
 
-### 3.6  九大组件初始化
+### 3.7  九大组件初始化
 
 * **在DispatcherServlet类中的onRefresh()方法中进行初始化**
 
@@ -726,7 +964,324 @@ private List<ViewResolver> viewResolvers;
   }
   ```
 
-## 第四章  常用注解对比
+## 第四章  视图解析器
+
+### 4.1  forward前缀指定一个转发操作
+
+* forward转发一个页面：不经过视图解析器
+
+  * /hello.jsp：转发当前项目下的hello
+  * 前缀的转发，不会由我们配置的视图解析器拼串
+
+  ```java
+  @RequestMapping("/handle01")
+  public String handle01(){
+      return "forward:/hello.jsp";
+  }
+  
+  @RequestMapping("/handle02")
+  public String handle02(){
+      //跳转到handle01
+      return "forward:/handle01";
+  }
+  ```
+
+### 4.2  redirect前缀指定重定向到页面
+
+* redirect重定向：不经过视图解析器
+
+  ```java
+  @RequestMapping("/handle03")
+  public String handle03(){
+      return "redirect:/hello.jsp";
+  }
+  ```
+
+### 4.3  视图解析流程
+
+* 1、在ha.handle方法执行后，会得到ModelAndView对象，里面包含view视图对象
+
+* 2、然后调用this.processDispatchResult(processedRequest, response, mappedHandler, mv,   
+
+  (Exception)dispatchException)方法进行页面渲染
+
+  ```java
+  private void processDispatchResult(HttpServletRequest request, HttpServletResponse response, @Nullable HandlerExecutionChain mappedHandler, @Nullable ModelAndView mv, @Nullable Exception exception) throws Exception {
+      boolean errorView = false;
+      if (exception != null) {
+          if (exception instanceof ModelAndViewDefiningException) {
+              this.logger.debug("ModelAndViewDefiningException encountered", exception);
+              mv = ((ModelAndViewDefiningException)exception).getModelAndView();
+          } else {
+              Object handler = mappedHandler != null ? mappedHandler.getHandler() : null;
+              mv = this.processHandlerException(request, response, handler, exception);
+              errorView = mv != null;
+          }
+      }
+  
+      if (mv != null && !mv.wasCleared()) {
+          //渲染页面
+          this.render(mv, request, response);
+          if (errorView) {
+              WebUtils.clearErrorRequestAttributes(request);
+          }
+      } else if (this.logger.isTraceEnabled()) {
+          this.logger.trace("No view rendering, null ModelAndView returned.");
+      }
+  
+      if (!WebAsyncUtils.getAsyncManager(request).isConcurrentHandlingStarted()) {
+          if (mappedHandler != null) {
+              mappedHandler.triggerAfterCompletion(request, response, (Exception)null);
+          }
+  
+      }
+  }
+  ```
+
+* 3、调用render(mv, request, response)方法渲染页面
+
+  ```java
+  protected void render(ModelAndView mv, HttpServletRequest request, HttpServletResponse response) throws Exception {
+          Locale locale = this.localeResolver != null ? this.localeResolver.resolveLocale(request) : request.getLocale();
+          response.setLocale(locale);
+          String viewName = mv.getViewName();
+          View view;
+          if (viewName != null) {
+              //获取view对象
+              view = this.resolveViewName(viewName, mv.getModelInternal(), locale, request);
+              if (view == null) {
+                  throw new ServletException("Could not resolve view with name '" + mv.getViewName() + "' in servlet with name '" + this.getServletName() + "'");
+              }
+          } else {
+              view = mv.getView();
+              if (view == null) {
+                  throw new ServletException("ModelAndView [" + mv + "] neither contains a view name nor a View object in servlet with name '" + this.getServletName() + "'");
+              }
+          }
+  
+          if (this.logger.isTraceEnabled()) {
+              this.logger.trace("Rendering view [" + view + "] ");
+          }
+  
+          try {
+              if (mv.getStatus() != null) {
+                  response.setStatus(mv.getStatus().value());
+              }
+  			//9、调用view对象的render方法
+              view.render(mv.getModelInternal(), request, response);
+          } catch (Exception var8) {
+              if (this.logger.isDebugEnabled()) {
+                  this.logger.debug("Error rendering view [" + view + "]", var8);
+              }
+  
+              throw var8;
+          }
+      }
+  ```
+
+* 4、调用resolveViewName获取View对象
+
+  ```java
+  @Nullable
+  protected View resolveViewName(String viewName, @Nullable Map<String, Object> model, Locale locale, HttpServletRequest request) throws Exception {
+      if (this.viewResolvers != null) {
+          Iterator var5 = this.viewResolvers.iterator();
+  
+          while(var5.hasNext()) {
+              //获取对应的view处理器
+              ViewResolver viewResolver = (ViewResolver)var5.next();
+              //根据对应的view处理器获取对应的view对象
+              View view = viewResolver.resolveViewName(viewName, locale);
+              if (view != null) {
+                  return view;
+              }
+          }
+      }
+  
+      return null;
+  }
+  ```
+
+* 5、ViewResolver是个接口，有多个实现类，一般以AbstractCachingViewResolver类中的方法进行处理
+
+  ```java
+  @Nullable
+  public View resolveViewName(String viewName, Locale locale) throws Exception {
+      if (!this.isCache()) {
+          return this.createView(viewName, locale);
+      } else {
+          //判断有没有缓存
+          Object cacheKey = this.getCacheKey(viewName, locale);
+          View view = (View)this.viewAccessCache.get(cacheKey);
+          //没有缓存则重新创建
+          if (view == null) {
+              Map var5 = this.viewCreationCache;
+              synchronized(this.viewCreationCache) {
+                  view = (View)this.viewCreationCache.get(cacheKey);
+                  if (view == null) {
+                      //创建view对象
+                      view = this.createView(viewName, locale);
+                      if (view == null && this.cacheUnresolved) {
+                          view = UNRESOLVED_VIEW;
+                      }
+  
+                      if (view != null) {
+                          this.viewAccessCache.put(cacheKey, view);
+                          this.viewCreationCache.put(cacheKey, view);
+                      }
+                  }
+              }
+          } else if (this.logger.isTraceEnabled()) {
+              this.logger.trace(formatKey(cacheKey) + "served from cache");
+          }
+  
+          return view != UNRESOLVED_VIEW ? view : null;
+      }
+  }
+  ```
+
+* 6、创建View对象，以UrlBasedViewResolver为例
+
+  ```java
+  protected View createView(String viewName, Locale locale) throws Exception {
+      if (!this.canHandle(viewName, locale)) {
+          return null;
+      } else {
+          String forwardUrl;
+          //redirect另外处理
+          if (viewName.startsWith("redirect:")) {
+              forwardUrl = viewName.substring("redirect:".length());
+              RedirectView view = new RedirectView(forwardUrl, this.isRedirectContextRelative(), this.isRedirectHttp10Compatible());
+              String[] hosts = this.getRedirectHosts();
+              if (hosts != null) {
+                  view.setHosts(hosts);
+              }
+  
+              return this.applyLifecycleMethods("redirect:", view);
+          //forward另外处理
+          } else if (viewName.startsWith("forward:")) {
+              forwardUrl = viewName.substring("forward:".length());
+              InternalResourceView view = new InternalResourceView(forwardUrl);
+              return this.applyLifecycleMethods("forward:", view);
+          } else {
+              //调用父类的createView方法
+              return super.createView(viewName, locale);
+          }
+      }
+  }
+  ```
+
+* 7、当子类没有实现或者调用父类AbstractCachingViewResolver方法时，统一走以下方法
+
+  ```java
+  @Nullable
+  protected View createView(String viewName, Locale locale) throws Exception {
+      return this.loadView(viewName, locale);
+  }
+  
+  @Nullable
+  protected abstract View loadView(String var1, Locale var2) throws Exception;
+  ```
+
+* 8、然后调用子类的loadView方法，以UrlBasedViewResolver为例
+
+  ```java
+  protected View loadView(String viewName, Locale locale) throws Exception {
+      AbstractUrlBasedView view = this.buildView(viewName);
+      View result = this.applyLifecycleMethods(viewName, view);
+      return view.checkResource(locale) ? result : null;
+  }
+  
+  protected AbstractUrlBasedView buildView(String viewName) throws Exception {
+      Class<?> viewClass = this.getViewClass();
+      Assert.state(viewClass != null, "No view class");
+      AbstractUrlBasedView view = (AbstractUrlBasedView)BeanUtils.instantiateClass(viewClass);
+      view.setUrl(this.getPrefix() + viewName + this.getSuffix());
+      String contentType = this.getContentType();
+      if (contentType != null) {
+          view.setContentType(contentType);
+      }
+  
+      view.setRequestContextAttribute(this.getRequestContextAttribute());
+      view.setAttributesMap(this.getAttributesMap());
+      Boolean exposePathVariables = this.getExposePathVariables();
+      if (exposePathVariables != null) {
+          view.setExposePathVariables(exposePathVariables.booleanValue());
+      }
+  
+      Boolean exposeContextBeansAsAttributes = this.getExposeContextBeansAsAttributes();
+      if (exposeContextBeansAsAttributes != null) {
+          view.setExposeContextBeansAsAttributes(exposeContextBeansAsAttributes.booleanValue());
+      }
+  
+      String[] exposedContextBeanNames = this.getExposedContextBeanNames();
+      if (exposedContextBeanNames != null) {
+          view.setExposedContextBeanNames(exposedContextBeanNames);
+      }
+  
+      return view;
+  }
+  ```
+
+* 9、经过第8步后能得到View对象，然后就执行第3步中提到的view.render()方法。View是一个接口，它的  
+
+  render()方法由AbstractView实现
+
+  ```java
+  public void render(@Nullable Map<String, ?> model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+      if (this.logger.isDebugEnabled()) {
+          this.logger.debug("View " + this.formatViewName() + ", model " + (model != null ? model : Collections.emptyMap()) + (this.staticAttributes.isEmpty() ? "" : ", static attributes " + this.staticAttributes));
+      }
+  
+      Map<String, Object> mergedModel = this.createMergedOutputModel(model, request, response);
+      this.prepareResponse(request, response);
+      //render方法的核心，经过这步后，视图渲染工作就完成了
+      this.renderMergedOutputModel(mergedModel, this.getRequestToExpose(request), response);
+  }
+  ```
+
+* 10、renderMergedOutputModel是一个抽象方法，InternalResourceView对其进行了实现
+
+  ```java
+  protected void renderMergedOutputModel(Map<String, Object> model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+      //将模型中的数据放在请求域中
+      this.exposeModelAsRequestAttributes(model, request);
+      this.exposeHelpers(request);
+      //获取转发的路径
+      String dispatcherPath = this.prepareForRendering(request, response);
+      //获取对应的转发器
+      RequestDispatcher rd = this.getRequestDispatcher(request, dispatcherPath);
+      if (rd == null) {
+          throw new ServletException("Could not get RequestDispatcher for [" + this.getUrl() + "]: Check that the corresponding file exists within your web application archive!");
+      } else {
+          if (this.useInclude(request, response)) {
+              response.setContentType(this.getContentType());
+              if (this.logger.isDebugEnabled()) {
+                  this.logger.debug("Including [" + this.getUrl() + "]");
+              }
+  
+              rd.include(request, response);
+          } else {
+              if (this.logger.isDebugEnabled()) {
+                  this.logger.debug("Forwarding to [" + this.getUrl() + "]");
+              }
+  			//进行转发操作
+              rd.forward(request, response);
+          }
+  
+      }
+  }
+  ```
+
+* **11、总结**
+
+  * **视图解析器只是为了得到视图对象**
+
+  * **视图对象才能真正地转发（将模型数据全部放在请求域中）或者重定向到页面。视图对象才能真正的**  
+
+    **渲染视图**
+
+## 第五章  常用注解对比
 
 |                     注解                     |                             备注                             |
 | :------------------------------------------: | :----------------------------------------------------------: |
