@@ -123,7 +123,9 @@
   }
   ```
 
-* **@RequestBody**：用于获取请求体内容，直接使用得到的是k-v&k-v...结构的数据，不能用于get方法
+* **@RequestBody**：用于获取请求体内容，可以接受json数据。直接使用得到的是k-v&k-v...结构的数据，不能  
+
+  用于get方法
 
   * required：是否必须有请求体，默认值true
 
@@ -140,7 +142,7 @@
   ```java
   @RequestMapping("/hello2")
   public String hello(@RequestHeader(value="Accept-Language")String language){
-      System.out.println(language)
+      System.out.println(language);
   	return "";
   }
   ```
@@ -150,11 +152,20 @@
   ```java
   @RequestMapping("/hello3")
   public String hello(@CookieValue("JSESSIONID")String jsessionId){
-      System.out.println(jsessionId)
+      System.out.println(jsessionId);
   	return "";
   }
   ```
 
+* **HttpEntity**<T>：获取请求的所有信息，包括请求头和请求体等
+
+  ```java
+  @RequestMapping("/hello")
+  public String hello(HttpEntity<String> str){
+      System.out.println(str);
+  	return "";
+  }
+  ```
 
 ### 1.4  乱码解决方法
 
@@ -291,7 +302,7 @@
 
 ### 2.2 返回值是ModelAndView
 
-* 既包含视图信息（页面地址）也包含模型数据（页面数据），数据也放在请求域中
+* 既包含**视图信息**（页面地址）也包含**模型数据**（页面数据），数据也放在请求域中
 
   ```java
   @RequestMapping("/helloworld")
@@ -359,7 +370,7 @@
 
 ### 2.5  返回值是字符串
 
-* 返回字符串可以指定逻辑视图名，通过视图解析器解析为物理视图地址
+* **返回字符串可以指定逻辑视图名，通过视图解析器解析为物理视图地址**
 
   ```java
   //指定逻辑视图名，经过视图解析器解析为jsp，物理路径为resources下的success.jsp
@@ -372,7 +383,7 @@
 
 ### 2.6  返回值为void
 
-* 一般需要自己跳转页面
+* **一般需要自己跳转页面**
 
   ```java
   @RequestMapping("/helloworld")
@@ -386,11 +397,64 @@
 
 ### 2.7  @ResponseBody响应json数据
 
-* 加入@ResponseBody或者@RestController注解后，会自动把返回值转为json字符串，并且不再使用视图解  
+* 加入**@ResponseBody**或者**@RestController**注解后，会自动把返回值转为json字符串，并且不再使用视  
 
-  析器，单纯的返回数据
+  图解析器，单纯的返回数据
 
-### 2.8  SpringMVC实现文件上传
+### 2.8  ResponseEntity用于自定义响应
+
+* **可用于自定义返回响应体，响应头和响应状态码等**
+
+  ```java
+  @RequestMapping("/handle03")
+  public ResponseEntity<Employee> handle05(){
+      //状态码
+      HttpStatus statusCode = HttpStatus.OK;
+      //响应头
+      MultiValueMap<String, String> headers = new HttpHeaders();
+      headers.add("Set-Cookie", "username=hahaha");
+      //响应体
+      Employee employee = new Employee();
+      ResponseEntity<Employee> entity = new ResponseEntity<>(employee, headers, statusCode);
+      return entity;
+  }
+  ```
+
+### 2.9  SpringMVC实现文件下载
+
+* **主要定制响应头**
+
+  * 1、指定响应头MIME类型：ContentType
+  * 2、指定接收程序处理的方式（打开方式）：Content-Disposition
+
+  ```java
+  //指定响应头类型：ContentType
+  //如果知道下载的类型，可以写死，也可以动态获取
+  //response.setContentType("application/x-msdownload;charset=utf8");
+  //response.setContentType("application/force-download;charset=utf8");
+  response.setContentType("application/octet-stream;charset=utf8");
+  
+  //指定响应头打开方式：Content-Disposition
+  //告诉浏览器以附件的形式打开
+  response.setHeader( "Content-Disposition","attachment;filename=" + fileName);
+  ```
+
+* **动态获取文件的MIME类型，利用jdk1.7的nio包**
+
+  ```java
+  public static String getContentType(String filename){
+      String type = null;
+      Path path = Paths.get(filename);
+      try {
+          type = Files.probeContentType(path);
+      } catch (IOException e){
+          e.printStackTrace();
+      }
+      return type;
+  }
+  ```
+
+### 2.10  SpringMVC实现文件上传
 
 * **文件上传的必要前提**
 
@@ -445,13 +509,15 @@
 
 * **SpringMVC上传文件**
 
-  * SpringMVC框架提供了MultipartFile对象，该对象表示上传的文件，要求变量名称必须和表单file标签  
+  * SpringMVC框架提供了MultipartFile对象，该对象表示上传的文件，要求变量名称必须和表单file标签的  
 
-     的name属性名称相同
+     name属性名称相同
 
     ```java
     @RequestMapping("/upload")
     public String upload(@RequestParam("file") MultipartFile file){
+        //文件项的name，就是前端指定的那个name
+        //String name = file.getName();
         //获取原始文件名
         String fileName = file.getOriginalFilename();
         //获取文件后缀
@@ -467,6 +533,23 @@
             dest.getParentFile().mkdirs();
         }
     	file.transferTo(dest);
+        return "fail";
+    }
+    ```
+  
+
+* **多文件上传**
+
+  * 直接将MultipartFile改为数组即可
+
+    ```java
+    @RequestMapping("/upload")
+    public String upload(@RequestParam("file") MultipartFile[] files){
+        for(MultipartFile file : files){
+            if(!file.isEmpty()){
+                ...
+            }
+        }
         return "fail";
     }
     ```
@@ -803,6 +886,7 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
           for(int i = 0; i < parameters.length; ++i) {
               MethodParameter parameter = parameters[i];
               parameter.initParameterNameDiscovery(this.parameterNameDiscoverer);
+              //检查当前参数类型是否已经提供了参数值
               args[i] = findProvidedArgument(parameter, providedArgs);
               if (args[i] == null) {
                   //这块是比那里预置的参数解析器，就是前面说的责任链模式
@@ -831,23 +915,103 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
   }
   ```
 
+  ```java
+  @Nullable
+  protected static Object findProvidedArgument(MethodParameter parameter, @Nullable Object... providedArgs) {
+      if (!ObjectUtils.isEmpty(providedArgs)) {
+          Object[] var2 = providedArgs;
+          int var3 = providedArgs.length;
+  
+          for(int var4 = 0; var4 < var3; ++var4) {
+              Object providedArg = var2[var4];
+              if (parameter.getParameterType().isInstance(providedArg)) {
+                  return providedArg;
+              }
+          }
+      }
+  
+      return null;
+  }
+  ```
+
 * 8、resolvers.resolveArgument()找到对应的参数解析器来解析参数
 
   ```java
   @Nullable
   public Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer, NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory) throws Exception {
-      //根据不同的参数获取不同的参数解析器
+      //根据 MethodParameter获取不同的参数解析器
       HandlerMethodArgumentResolver resolver = this.getArgumentResolver(parameter);
       if (resolver == null) {
           throw new IllegalArgumentException("Unsupported parameter type [" + parameter.getParameterType().getName() + "]. supportsParameter should be called first.");
       } else {
-          //解析参数
+          //数据绑定，这里就不再深入
           return resolver.resolveArgument(parameter, mavContainer, webRequest, binderFactory);
       }
   }
   ```
 
-* 9、doInvoke()方法
+* 9、确定自定义类型参数的值，如自定义的POJO类。在ModelAttributeMethodProcessor类中处理
+
+  ```java
+  @Nullable
+  public final Object resolveArgument(MethodParameter parameter, @Nullable ModelAndViewContainer mavContainer, NativeWebRequest webRequest, @Nullable WebDataBinderFactory binderFactory) throws Exception {
+      Assert.state(mavContainer != null, "ModelAttributeMethodProcessor requires ModelAndViewContainer");
+      Assert.state(binderFactory != null, "ModelAttributeMethodProcessor requires WebDataBinderFactory");
+      String name = ModelFactory.getNameForParameter(parameter);
+      ModelAttribute ann = (ModelAttribute)parameter.getParameterAnnotation(ModelAttribute.class);
+      if (ann != null) {
+          mavContainer.setBinding(name, ann.binding());
+      }
+  
+      Object attribute = null;
+      BindingResult bindingResult = null;
+      if (mavContainer.containsAttribute(name)) {
+          attribute = mavContainer.getModel().get(name);
+      } else {
+          try {
+              attribute = this.createAttribute(name, parameter, binderFactory, webRequest);
+          } catch (BindException var10) {
+              if (this.isBindExceptionRequired(parameter)) {
+                  throw var10;
+              }
+  
+              if (parameter.getParameterType() == Optional.class) {
+                  attribute = Optional.empty();
+              }
+  
+              bindingResult = var10.getBindingResult();
+          }
+      }
+  
+      if (bindingResult == null) {
+          //获绑定器
+          WebDataBinder binder = binderFactory.createBinder(webRequest, attribute, name);
+          if (binder.getTarget() != null) {
+              if (!mavContainer.isBindingDisabled(name)) {
+                  this.bindRequestParameters(binder, webRequest);
+              }
+  
+              this.validateIfApplicable(binder, parameter);
+              if (binder.getBindingResult().hasErrors() && this.isBindExceptionRequired(binder, parameter)) {
+                  throw new BindException(binder.getBindingResult());
+              }
+          }
+  
+          if (!parameter.getParameterType().isInstance(attribute)) {
+              attribute = binder.convertIfNecessary(binder.getTarget(), parameter.getParameterType(), parameter);
+          }
+  
+          bindingResult = binder.getBindingResult();
+      }
+  
+      Map<String, Object> bindingResultModel = bindingResult.getModel();
+      mavContainer.removeAttributes(bindingResultModel);
+      mavContainer.addAllAttributes(bindingResultModel);
+      return attribute;
+  }
+  ```
+  
+* 10、doInvoke()方法
 
   ```java
   @Nullable
@@ -1281,7 +1445,213 @@ private List<ViewResolver> viewResolvers;
 
     **渲染视图**
 
-## 第五章  常用注解对比
+### 4.4  时序图
+
+![](./02.png)
+
+### 4.5  常用的视图实现类
+
+| 大类     | 视图类型                     | 说明                                                         |
+| -------- | ---------------------------- | ------------------------------------------------------------ |
+| URL视图  | InternalResourceView         | 将JSP或其他资源封装成一个视图，是InternalResourceViewResolver默认使用的视图实现类 |
+|          | JstlView                     | 如果JSP文件中刚使用了JSTL国际化标签功能，则需要使用该视图类  |
+| 文档视图 | AbstractExcelView            | Excel文档视图的抽象类。该视图基于POI构造Excel文档            |
+|          | AbstractPdfView              | PDF文档视图的抽象类，该视图基于iText构造PDF文档              |
+| 报表视图 | ConfigurableJsperReportsView | 几个使用JasperReports报表技术的视图                          |
+|          | JsperReportsCsvView          |                                                              |
+|          | JsperReportsMultiFormatView  |                                                              |
+|          | JasperReportsHtmlView        |                                                              |
+|          | JasperReportsPdfView         |                                                              |
+|          | JasperReportsXlsView         |                                                              |
+| JSON视图 | MappingJacksonJsonView       | 将模型数据通过Jackson开源框架的ObjectMapper以JSON方式输出    |
+
+### 4.6  常用的视图解析器实现类
+
+| 大类             | 视图类型                     | 说明                                                         |
+| ---------------- | ---------------------------- | ------------------------------------------------------------ |
+| 解析为Bean的名字 | BeanNameViewResolver         | 将逻辑视图名解析为一个Bean，Bean的id等于逻辑视图名           |
+| 解析为URL文件    | InternalResourceViewResolver | 将视图名解析为一个URL文件，一般使用该解析器将视图名映射为一个保存在WEB-INF目录下的程序文件（如JSP） |
+|                  | JasperReportsViewResolver    | JasperReports是一个基于Java的开源报表工具，该解析器将视图名解析为报表文件对应的URL |
+| 模板文件视图     | FreeMarkerViewResolver       | 解析为基于FreeMarker模板技术的模板文件                       |
+|                  | VeloityViewResolver          | 解析为基于Velocity模板技术的模板文件                         |
+|                  | VelocityLayoutViewResolver   |                                                              |
+
+## 第五章  数据绑定&数据格式化&数据校验
+
+### 5.1  数据绑定的问题
+
+* 1、数据绑定期间的数据类型转换？String-Integer String-Boolean
+* 2、数据绑定期间的数据格式化问题？比如日期进行转换
+* 3、数据校验？提交的数据必须是合法的
+
+### 5.2  数据绑定流程
+
+* 1、SpringMVC主框架将ServletRequest对象及目标方法的入参实例传递给WebDataBinderFactory实例，以  
+
+  创建**DataBinder**实例对象
+
+* 2、DataBinder调用装配在SpringMVC上下文的**ConversionService**组件进行**数据类型转换、数据格式化**工  
+
+  作。将Servlet中的请求信息填充到入参对象中
+
+* 3、调用**Validator**组件对已经绑定了请求信息的入参对象进行合法性校验，并最终生成数据绑定结果  
+
+  **BindingData**对象
+
+* 4、SpringMVC抽取**BindingResult**中的入参对象和校验错误对象，将它们赋给处理方法的响应入参
+
+### 5.3  数据绑定流程图示
+
+* SPringMVC通过反射机制对目标处理方法进行解析，将请求消息绑定到处理方法的入参中。数据绑定的核心  
+
+  部件**DataBinder**，运行机制如下：
+
+  ![](./03.png)
+
+### 5.4  数据绑定-规定格式
+
+* 可以在POJO中使用@DataTimeFormat进行绑定日期。使用@NumberFormat进行绑定浮点数
+
+  ```java
+  @DataTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")
+  private Date date;
+  
+  @NumberFormat(pattern="#，###，###.##")
+  private Double salary;
+  ```
+
+### 5.5  数据校验
+
+* SpringMVC为我们提供了JSR 303对JavaBean数据合法性校验提供标准框架，它包含在JavaEE 6.0中
+
+* JSR 303通过在JavaBean属性上标志注解来进行规则校验
+
+  | 注解                       | 功能说明                               |
+  | -------------------------- | -------------------------------------- |
+  | @Null                      | 元素必须为null                         |
+  | @NotNull                   | 元素必须不为null                       |
+  | @AssertTrue                | 元素必须为true                         |
+  | @AssertFalse               | 元素必须为false                        |
+  | @Min(value)                | 元素必须为数字，且大于等于指定的最小值 |
+  | @Max(value)                | 元素必须为数字，且小于等于指定的最大值 |
+  | @DecimalMin(value)         | 元素必须为数字，且大于等于指定的最小值 |
+  | @DecimalMax(value)         | 元素必须为数字，且大于等于指定的最小值 |
+  | @Size(max, min)            | 元素的大小必须在指定的范围内           |
+  | @Digits(integer, fraction) | 必须是一个数字，其值必须在范围内       |
+  | @Past                      | 元素必须是一个过去的日期               |
+  | @Future                    | 元素必须是一个未来的日期               |
+  | @Pattern(value)            | 元素必须是一个符合规定的正则表达式     |
+
+* 示例
+
+  ```java
+  public class Employee{
+      //不能为空，message为错误信息
+      @NotNull(mseeage="不能为空")
+  	private String lastName;
+  }
+  
+  @RequestMapping("/helloworld")
+  //@Valid注解启用JavaBean中的校验规则，后面紧跟BindingResult可以获取校验结果
+  public String helloworld(@Valid Employee employee, BindingResult result){
+      boolean hasErrors = result.hasErrors();
+      if(hasErrors){
+          List<FieldError> errors = result.getFieldErrors();
+          ...
+      }
+      return "";
+  }
+  ```
+
+## 第六章  拦截器
+
+### 6.1  拦截器
+
+* 允许运行目标方法之前进行一些拦截工作，或者目标方法之后进行一些其他处理
+  * javaWeb：Filter
+  * SpringMVC：HandlerInterceptor
+* SpringMVC的拦截器都实现了**HandlerInterceptor**接口
+  * **HandlerInterceptor**
+    * preHandle：在目标方法运行之前调用。根据返回的boolean值确定要不要执行目标方法
+    * postHandle：在目标方法运行之后调用
+    * afterCompletion：在请求整个完成之后，来到目标页面之后调用
+
+### 6.2  自定义拦截器
+
+* 1、实现HandlerInterceptor接口
+
+  ```java
+  @Component
+  public class MyInterceptor implements HandlerInterceptor {
+  
+      @Override
+      public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+          System.out.println("自定义拦截器...");
+          return true;
+      }
+  
+      @Override
+      public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable ModelAndView modelAndView) throws Exception {
+  
+      }
+  
+      @Override
+      public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
+  
+      }
+  }
+  ```
+
+* 2.1、注册拦截器（java配置方式，推荐）
+
+  ```java
+  @Configuration
+  public class MyMvcConfig extends WebMvcConfigurationSupport {
+  
+      @Autowired
+      private MyInterceptor myInterceptor;
+  
+      @Override
+      protected void addInterceptors(InterceptorRegistry registry) {
+          //"/usr/login"  拦截/usr/login的请求
+          //全拦截
+          registry.addInterceptor(myInterceptor).addPathPatterns("/**");
+      }
+  }
+  ```
+
+* 2.2、注册拦截器（xml方式）
+
+  ```xml
+  <mvc:interceptors>
+      <mvc:interceptor>
+          <mvc:mapping path="/**"/>
+      	<bean class="com.xianCan.springboot.config.MyInterceptor"></bean>
+      </mvc:interceptor>
+  </mvc:interceptors>
+  ```
+
+### 6.3  运行流程
+
+* **单个拦截器正常运行流程**
+  * 1、拦截器的preHandle
+  * 2、目标方法
+  * 3、拦截器postHandle
+  * 4、页面
+  * 5、拦截器的afterCompletion
+* **单个拦截器异常流程**
+  * 1、只要preHandle不放行就没有以后的流程
+  * 2、只要放行了，都会执行afterCompletion
+* **多个拦截器正常运行流程**
+  * 和过滤器一样：先1pre，2pre，然后2post，1post
+  * 拦截器的执行顺序按照注册的顺序
+* **多个拦截器的异常流程**
+  * postHandle：哪一个不放行，都没有postHandle
+  * afterCompletion：哪一个不放行，它前面的**已经放行的拦截器的afterCompletion都会执行**
+
+## 第七章  异常处理
+
+## 第八章  常用注解对比
 
 |                     注解                     |                             备注                             |
 | :------------------------------------------: | :----------------------------------------------------------: |
