@@ -537,7 +537,6 @@
     }
     ```
   
-
 * **多文件上传**
 
   * 直接将MultipartFile改为数组即可
@@ -1649,9 +1648,87 @@ private List<ViewResolver> viewResolvers;
   * postHandle：哪一个不放行，都没有postHandle
   * afterCompletion：哪一个不放行，它前面的**已经放行的拦截器的afterCompletion都会执行**
 
+### 6.4  拦截器与过滤器
+
+* 1、拦截器基于过滤器，但比过滤器强大。能进行prehandle、postHandle、afterCompletion
+* 2、拦截器能交给Spring容器进行管理，能注入其它组件
+* 3、简单功能用过滤器（如修改字符编码），其它复杂功能用拦截器
+
 ## 第七章  异常处理
 
-## 第八章  常用注解对比
+### 7.1  三个异常处理器
+
+* **ExceptionHandlerExceptionResolver**：处理@ExceptionHandler注解的异常
+* **ResponseStatusExceptionResolver**：处理@ResponseStatus
+* **DefaultHandlerExceptionResolver**：判断是否SpringMVC自带的异常
+* **SimpleMappingExceptionResolver**：通过配置的方式进行异常处理
+
+### 7.2  @ExceptionHandler
+
+* 处理本类中的异常
+
+  ```java
+  /**
+   * 告诉springMVC这个方法专门用来处理本类中所有的异常
+   * 方法形参上随便写一个Exception，用来接收发生的异常
+   * @return
+   */
+  @ExceptionHandler(value = Exception.class)
+  public String handleException(Exception exception){
+      
+      return "myError";
+  }
+  ```
+
+* 将方法抽取成通用类
+
+  ```java
+  /**
+   * @author xianCan
+   * @date 2020/4/8 23:32
+   * 
+   * 集中处理所有异常
+   * 1、集中处理所有异常的类加入到ioc容器中
+   * 2、@ControllerAdvice专门处理异常的类
+   */
+  @ControllerAdvice
+  public class MyExceptionHandler {
+  
+      @ExceptionHandler(value = Exception.class)
+      public ModelAndView handleException(Exception exception){
+          ModelAndView mv = new ModelAndView("myError");
+          mv.addObject(exception);
+          return mv;
+      }
+  }
+  ```
+
+* **1、给方法上随便写一个Exception，用来接收发生的异常**
+
+* **2、要携带异常信息不能给参数位置写Model，返回值写ModelAndView即可**
+
+* **3、如果有多个@ExceptionHandler都能处理整个一场，精确优先**
+
+* **4、全局异常处理与本类同时存在，本类优先**
+
+### 7.3  @ResponseStatus
+
+* 该注解可用于自定义异常
+
+  ```java
+  /**
+   * @author xianCan
+   * @date 2020/4/9 0:13
+   */
+  @ResponseStatus(reason = "自定义异常", value = HttpStatus.NOT_ACCEPTABLE)
+  public class MyException extends RuntimeException {
+  
+  }
+  ```
+
+## 第八章  SpringMVC运行流程
+
+## 第九章  常用注解对比
 
 |                     注解                     |                             备注                             |
 | :------------------------------------------: | :----------------------------------------------------------: |
