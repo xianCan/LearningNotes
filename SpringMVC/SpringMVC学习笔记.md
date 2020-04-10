@@ -604,7 +604,7 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
                             return;
                         }
                     }
-
+					//拦截器的preHandle执行位置，有一个拦截器返回false目标方法以后都不会执行；直接跳到afterCompletion
                     if (!mappedHandler.applyPreHandle(processedRequest, response)) {
                         return;
                     }
@@ -618,7 +618,9 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
                     }
 
                     this.applyDefaultViewName(processedRequest, mv);
+                    //目标方法只要正常就会执行postHandle
                     mappedHandler.applyPostHandle(processedRequest, response, mv);
+                    //出现异常就会直接渲染视图
                 } catch (Exception var20) {
                     dispatchException = var20;
                 } catch (Throwable var21) {
@@ -642,6 +644,34 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
             }
 
         }
+    }
+
+//preHandle拦截器的方法，顺序执行
+boolean applyPreHandle(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        HandlerInterceptor[] interceptors = this.getInterceptors();
+        if (!ObjectUtils.isEmpty(interceptors)) {
+            for(int i = 0; i < interceptors.length; this.interceptorIndex = i++) {
+                HandlerInterceptor interceptor = interceptors[i];
+                if (!interceptor.preHandle(request, response, this.handler)) {
+                    this.triggerAfterCompletion(request, response, (Exception)null);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+//postHandle执行方法，倒序执行
+void applyPostHandle(HttpServletRequest request, HttpServletResponse response, @Nullable ModelAndView mv) throws Exception {
+        HandlerInterceptor[] interceptors = this.getInterceptors();
+        if (!ObjectUtils.isEmpty(interceptors)) {
+            for(int i = interceptors.length - 1; i >= 0; --i) {
+                HandlerInterceptor interceptor = interceptors[i];
+                interceptor.postHandle(request, response, this.handler, mv);
+            }
+        }
+
     }
 ```
 
@@ -1727,6 +1757,27 @@ private List<ViewResolver> viewResolvers;
   ```
 
 ## 第八章  SpringMVC运行流程
+
+### 8.1  文字描述
+
+* **1、前端控制器（DispatcherServlet）收到请求，调用doDispatch进行处理**
+* **2、根据HandlerMapping中保存的请求映射信息，找到处理当前请求的处理器执行链（包含拦截器）**
+* **3、根据当前处理器找到对应HandlerAdapter（适配器）**
+* **4、拦截器的preHandle先执行**
+* **5、适配器执行目标方法**
+  * 1）ModelAttribute注解标注的方法提前运行
+  * 2）执行目标方法的时候（确定目标方法用到的参数）
+* **6、拦截器的postHandle执行**
+* **7、处理结果（页面渲染流程）**
+  * 1）如果有异常使用异常解析器处理异常，处理完之后还是会返回ModelAndView
+  * 2）调用render进行页面渲染
+    * 1）视图解析器根据视图名得到视图对象
+    * 2）视图对象调用render方法
+* **8、执行拦截器的afterCompletion**
+
+### 8.2  流程图
+
+![](./04.png)
 
 ## 第九章  常用注解对比
 
