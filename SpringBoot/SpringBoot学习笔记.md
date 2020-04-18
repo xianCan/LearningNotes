@@ -187,3 +187,31 @@ public @interface SpringBootApplication {
 
     ![](./01.png)
 
+### 1.6  使用Spring Initializer快速创建Spring  Boot项目
+
+* IDE都支持使用Spring的项目创建向导快速创建一个SpringBoot项目，选择我们需要的模块，向导会联网创建  
+
+  SpringBoot项目
+
+* 默认生成的SpringBoot项目
+
+  * 主程序已经生成好了，我们只需要编写自己的逻辑
+
+  * resources文件夹中目录结构
+
+    * static：保存所有的静态资源：js、css、images
+
+    * templates：保存所有的模板页面（SpringBoot默认jar包使用嵌入式的Tomcat，默认不支持JSP页面  
+
+      ，可以使用模板引擎（freemarker、thymeleaf））
+
+    * application.properties：SpringBoot的默认配置文件
+
+## 第二章  Spring Boot配置
+
+### 2.1  配置文件
+
+* SpringBoot使用一个全局的配置文件，配置文件是固定的：
+  * application.properties
+  * application.yml
+
