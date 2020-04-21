@@ -215,3 +215,330 @@ public @interface SpringBootApplication {
   * application.properties
   * application.yml
 
+* YAML（YAML Ain't Markup Language）
+  * YAML A Markup Language：是一个标记语言
+  * YAML isn't Markup Language：不是一个标记语言
+
+### 2.2  YAML语法
+
+#### 2.2.1  基本语法
+
+* k:(空格)v：表示一对键值对（空格必须有）
+* 以空格的缩进来控制层级关系；只要左边对齐的一列数据，都是同一个层级
+
+#### 2.2.2  值的写法
+
+* 字面量：普通的值（数字，字符串，布尔）
+
+  k: v：字面直接来写  
+
+  字符串默认不用加上单引号或者双引号；
+
+  ""：双引号，不会转移字符串里面的特殊字符，特殊字符会作为本身想表示的意思  
+
+  * name: "zhangshan \n lisi"  输出：zhangsan 换行 lisi
+
+  ''：单引号；会转义特殊字符，特殊字符最终只是一个普通的字符串数据
+
+  * name: "zhangshan \n lisi"  输出：zhangsan \n lisi
+
+#### 2.2.3  对象、Map
+
+* k: v：再下一行写对象的属性和值得关系，注意缩进
+
+  ```yaml
+  #正常写法
+  friends: 
+  	lastName: zhangsan
+  	age: 20
+  	
+  #行内写法
+  friends: {lastName: zhangsan, age: 20}
+  ```
+
+#### 2.2.4  数组（List、Set）
+
+* 用-值来表示组中的一个元素
+
+  ```yaml
+  pets: 
+  	- cat
+  	- dog
+  	- pig
+  	
+  #行内写法
+  pets: [cat, dog, pig]
+  ```
+
+### 2.3  自定义属性类
+
+* @ConfigurationProperties：告诉SpringBoot将本类中的所有属性和配置文件中相关的配置进行绑定
+  
+  - prefix = “person”：配置文件中哪个下面的所有属性进行一一映射
+  
+* @Component：告诉SpringBoot将本组件交给Spring容器进行管理
+
+  ```java
+  @Component
+  @ConfigurationProperties(prefix = "person")
+  public class Person{
+  	
+      private String lastName;
+      private Integer age;
+      private Boolean boss;
+      private Date birth;
+      
+      private Map<String, Object> maps;
+      private List<Object> lists;
+      
+      getter and setter...
+  }
+  ```
+
+### 2.4  @ConfigurationProperties和@Value注解比较
+
+|                      | @ConfigurationProperties | @Value     |
+| -------------------- | ------------------------ | ---------- |
+| 功能                 | 批量注入配置文件中的属性 | 一个个指定 |
+| 松散绑定（松散语法） | 支持                     | 不支持     |
+| SpEL                 | 不支持                   | 支持       |
+| JSR303数据校验       | 支持                     | 不支持     |
+| 复杂类型封装         | 支持                     | 不支持     |
+
+### 2.5  @PropertiesSource和@ImportResource
+
+* **@PropertiesSource**：加载指定的配置文件
+
+  ```java
+  @Component
+  @PropertiesSource(value = "person.properties")
+  public class Person{
+  	
+      private String lastName;
+      private Integer age;
+      private Boolean boss;
+      private Date birth;
+      
+      private Map<String, Object> maps;
+      private List<Object> lists;
+      
+      getter and setter...
+  }
+  ```
+
+* **@ImportResource**：导入Spring的配置文件，让配置文件里面的内容生效。（主要用于兼容以前的xml）
+
+  ```java
+  @SpringBootApplication
+  //在启动类中加入如下的注解，指定xml的路径
+  @ImportResource(locations = {"location:beanx.xml"})
+  public class HelloWorldMain {
+  
+      public static void main(String[] args) {
+          SpringApplication.run(HelloWorldMain.class);
+      }
+  }
+  ```
+
+* SpringBoot常用配置类来代替以前的配置文件
+
+  ```java
+  /**
+   * @author xianCan
+   * @date 2019/12/20 23:17
+   */
+  @Configuration //指明当前类是一个配置类，就是用来替代之前的Spring配置文件
+  public class JobDemo {
+  
+      @Bean
+      public Person person(){
+          return new Person();
+      }
+  ```
+
+
+### 2.6  配置文件占位符
+
+#### 2.6.1  RandomValuePropertySource：配置文件中可以使用随机数
+
+* ${random.value}
+* ${random.init}
+* ${random.long}
+* ${random.int(10)}
+* ${random.int[1024,65536]}
+
+#### 2.6.2  属性配置占位符
+
+- 可以在配置文件中引用前面配置过的属性（优先级前面配置过得这里都能用）
+
+- ${app.name:默认值}来指定找不到属性时的默认值
+
+  ```properties
+  app.name=MyApp
+  app.description=${app.name} is a Spring Boot application
+  ```
+
+### 2.7  Profile
+
+#### 2.7.1  多Profile文件
+
+* 我们在主配置文件编写的时候，文件名可以是application-{profile}.properties/yml
+* 默认使用application.properties的配置
+
+#### 2.7.2  yml支持多文档块方式
+
+```yaml
+server:
+  port: 9090
+spring:
+  profiles: dev
+---
+server:
+  port: 9091
+spring:
+  profiles: test
+---
+server:
+  port: 9092
+spring:
+  profiles: prod
+```
+
+#### 2.7.3  激活指定profile
+
+* 在配置文件中指定
+
+  ```properties
+  spring.profiles.active=dev
+  ```
+
+* 在命令行中指定
+
+  ```shell
+  java -jar xxx.jar --spring.profiles.active=dev
+  ```
+
+* 虚拟机参数
+
+  ```shell
+  -Dspring.profiles.active=dev
+  ```
+
+### 2.8  配置文件加载位置
+
+#### 2.8.1  文件位置
+
+* SpringBoot启动会扫描一下位置的application.properties或者application.yml文件作为springBoot的默认配  
+
+  置文件  
+
+  * file:./config/
+
+  * file:./
+
+  * **classpath**:/config/
+
+  * classpath:/
+
+  * 以上按照**优先级从高到低**的顺序，所有位置的文件都会被加载，高优先级配置内容会覆盖低优先级配置内  
+
+    容
+
+### 2.9  外部配置加载顺序
+
+* **SpringBoot也可以从以下位置加载配置，优先级从高到低，高优先级的配置覆盖低优先级的配置，所有的配**  
+
+  **置形成互补配置**
+
+* 1、**命令行参数**
+  * 多个配置用空格分开：--配置项=值
+* 2、来自java:comp/env的JNDI属性
+* 3、Java系统属性（System.properties()）
+* 4、操作系统环境变量
+* 5、RandomValuePropertySource配置的random.*属性值
+* 6、**jar包外部的application-{profile}.properties或application.yml（带spring.profile）配置文件**
+* 7、**jar包内部的application-{profile}.properties或application.yml（带spring.profile）配置文件**
+* 8、**jar包外部的application-{profile}.properties或application.yml（不带spring.profile）配置文件**
+* 9、**jar包内部的application-{profile}.properties或application.yml（不带spring.profile）配置文件**
+* 10、@Configuration注解类商的@PropertySource
+* 11、通过SpringApplication.setDefaultProperties指定的默认属性
+
+### 2.10  自动配置原理
+
+#### 2.10.1  自动配置原理
+
+* 1、SpringBoot启动时加载主配置类，开启了自动配置功能**@EnableAutoConfiguration**
+
+* 2、@EnableAutoConfiguration作用
+
+  * 利用AutoConfigurationImportSelector给容器导入一些配置  
+
+  * **将类路径下META-INF/spring.properties里面配置的所有EnableAutoConfiguration的值加入到了  **
+
+    **容器中**
+
+    ```java
+    protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
+        //扫描所有jar包类路径下 META-INF/spring.factories    
+        List<String> configurations = SpringFactoriesLoader.loadFactoryNames(this.getSpringFactoriesLoaderFactoryClass(), this.getBeanClassLoader());
+        Assert.notEmpty(configurations, "No auto configuration classes found in META-INF/spring.factories. If you are using a custom packaging, make sure that file is correct.");
+        return configurations;
+    }
+    
+    protected Class<?> getSpringFactoriesLoaderFactoryClass() {
+        return EnableAutoConfiguration.class;
+    }
+    ```
+
+    ```java
+    public static List<String> loadFactoryNames(Class<?> factoryClass, @Nullable ClassLoader classLoader) {
+        String factoryClassName = factoryClass.getName();
+        return (List)loadSpringFactories(classLoader).getOrDefault(factoryClassName, Collections.emptyList());
+    }
+    
+    private static Map<String, List<String>> loadSpringFactories(@Nullable ClassLoader classLoader) {
+        MultiValueMap<String, String> result = (MultiValueMap)cache.get(classLoader);
+        if (result != null) {
+            return result;
+        } else {
+            try {
+                //扫描所有jar包类路径下 META-INF/spring.factories  
+                Enumeration<URL> urls = classLoader != null ? classLoader.getResources("META-INF/spring.factories") : ClassLoader.getSystemResources("META-INF/spring.factories");
+                LinkedMultiValueMap result = new LinkedMultiValueMap();
+    
+                while(urls.hasMoreElements()) {
+                    URL url = (URL)urls.nextElement();
+                    UrlResource resource = new UrlResource(url);
+                    //把扫描到的这些文件的内容包装成properties对象
+                    Properties properties = PropertiesLoaderUtils.loadProperties(resource);
+                    Iterator var6 = properties.entrySet().iterator();
+    				//从properties中获取到EnableAutoConfiguration.class类（类名）对应的值，然后把他们添加到容器中
+                    while(var6.hasNext()) {
+                        Entry<?, ?> entry = (Entry)var6.next();
+                        String factoryClassName = ((String)entry.getKey()).trim();
+                        String[] var9 = StringUtils.commaDelimitedListToStringArray((String)entry.getValue());
+                        int var10 = var9.length;
+    
+                        for(int var11 = 0; var11 < var10; ++var11) {
+                            String factoryName = var9[var11];
+                            result.add(factoryClassName, factoryName.trim());
+                        }
+                    }
+                }
+    
+                cache.put(classLoader, result);
+                return result;
+            } catch (IOException var13) {
+                throw new IllegalArgumentException("Unable to load factories from location [META-INF/spring.factories]", var13);
+            }
+        }
+    }
+    
+    ```
+
+  * 可以查看META-INF/spring.factories下的内容，每一个这样的xxxAutoConfiguration类都是容器中的一个  
+
+    组件，都加入到容器中；用他们来做配置。每一个自动配置类进行自动配置功能
+
+  * 以HttpEncodingAutoConfiguration为例解释自动配置
+
