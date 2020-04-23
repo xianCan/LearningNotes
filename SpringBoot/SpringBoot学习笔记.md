@@ -451,6 +451,7 @@ spring:
   **置形成互补配置**
 
 * 1、**命令行参数**
+  
   * 多个配置用空格分开：--配置项=值
 * 2、来自java:comp/env的JNDI属性
 * 3、Java系统属性（System.properties()）
@@ -458,8 +459,8 @@ spring:
 * 5、RandomValuePropertySource配置的random.*属性值
 * 6、**jar包外部的application-{profile}.properties或application.yml（带spring.profile）配置文件**
 * 7、**jar包内部的application-{profile}.properties或application.yml（带spring.profile）配置文件**
-* 8、**jar包外部的application-{profile}.properties或application.yml（不带spring.profile）配置文件**
-* 9、**jar包内部的application-{profile}.properties或application.yml（不带spring.profile）配置文件**
+* 8、**jar包外部的application.properties或application.yml（不带spring.profile）配置文件**
+* 9、**jar包内部的application.properties或application.yml（不带spring.profile）配置文件**
 * 10、@Configuration注解类商的@PropertySource
 * 11、通过SpringApplication.setDefaultProperties指定的默认属性
 
@@ -540,5 +541,136 @@ spring:
 
     组件，都加入到容器中；用他们来做配置。每一个自动配置类进行自动配置功能
 
-  * 以HttpEncodingAutoConfiguration为例解释自动配置
+#### 2.10.2  以HttpEncodingAutoConfiguration为例解释自动配置
+
+```java
+@Configuration	//表示这是一个配置类，和以前编写的配置文件一样，也可以给容器中添加组件
+@EnableConfigurationProperties({HttpProperties.class}) //启动指定类的ConfigurationProperties功能，将配置文件中对应的值和HttpProperties绑定起来；并把HttpProperties加入到ioc容器中
+
+@ConditionalOnWebApplication(
+    type = Type.SERVLET  //Spring底层@Conditional注解，根据不同的条件，如果满足指定的条件，整个配置类里面的配置就会生效。判断当前应用是否是web应用，如果是的话就生效
+)
+@ConditionalOnClass({CharacterEncodingFilter.class}) //判断当前项目有没有这个类
+@ConditionalOnProperty(
+    prefix = "spring.http.encoding",  //判断配置文件中是否存在某个配置 
+    value = {"enabled"},		//spring.http.encoding.enabled是否存在，存在则读取值
+    matchIfMissing = true		//如果不存在，默认enabled的值为true
+)
+public class HttpEncodingAutoConfiguration {
+    
+    private final Encoding properties;
+    
+    //只有一个有参构造器。properties来源于上面的注解：			      @EnableConfigurationProperties({HttpProperties.class})
+    public HttpEncodingAutoConfiguration(HttpProperties properties) {
+        this.properties = properties.getEncoding();
+    }
+    
+    @Bean  //给容器中添加一个组件，这个组件的某些值需要从properties中获取
+    @ConditionalOnMissingBean
+    public CharacterEncodingFilter characterEncodingFilter() {
+        CharacterEncodingFilter filter = new OrderedCharacterEncodingFilter();
+        filter.setEncoding(this.properties.getCharset().name());
+   filter.setForceRequestEncoding(this.properties.shouldForce(org.springframework.boot.autoconfigure.http.HttpProperties.Encoding.Type.REQUEST));
+        filter.setForceResponseEncoding(this.properties.shouldForce(org.springframework.boot.autoconfigure.http.HttpProperties.Encoding.Type.RESPONSE));
+        return filter;
+    }
+}
+```
+
+* 所有在配置文件中能配置的属性都是在xxxProperties类中封装着。配置文件能配置什么就可以参照某个功能  
+
+  对应的这个属性类
+
+  ```java
+  @ConfigurationProperties(
+      prefix = "spring.http"  //从配置文件中获取指定的值和bean的属性进行绑定
+  )
+  public class HttpProperties {
+      ...
+  }
+  ```
+
+* 根据当前不同的条件判断，决定这个配置类是否生效
+
+  * 一旦这个配置类生效，这个配置类就会给容器中添加各种组件。这些组件的属性是从对应的properties类  
+
+    中获取的，这些类里面的每一个属性又是和配置文件绑定的
+
+### 2.11  SpringBoot的精髓：配置
+
+* **SpringBoot启动会加载大量的自动配置类**
+
+* **看我们需要的功能有没有SpringBoot默认写好的自动配置类***
+
+* **再来看这个自动配置类中到底配置了哪些组件（有我们要用的组件，我们就不需要再来配置）**
+
+* **给容器中自动配置类添加组件的时候，会从properties类中获取某些属性。我们就可以在配置文件中指定这  **
+
+  **些属性的值**
+
+* **xxxAutoConfiguration：自动配置类给容器中添加组件**
+
+* **xxxProperties：封装配置文件中相关属性**
+
+### 2.12  细节
+
+#### 2.12.1  @Conditional
+
+* @Conditional是Spring注解版的原生注解，SpringBoot对此派生了很多注解
+* 作用：必须是@Conditional指定的条件成立，才给容器中个添加组件，配置里的所有内容才生效
+
+| @Conditional扩展注解            | 作用（判断是否满足当前指定条件）                 |
+| ------------------------------- | ------------------------------------------------ |
+| @ConditionalOnJava              | 系统的java版本是否符合要求                       |
+| @ConditionalOnBean              | 容器中存在指定Bean                               |
+| @ConditionalOnMissingBean       | 容器中不存在指定Bean                             |
+| @ConditionalOnExpression        | 满足SpEL表达式指定                               |
+| @ConditionalOnClass             | 系统中有指定的类                                 |
+| @ConditionalOnMissingClass      | 系统中没有指定的类                               |
+| @ConditionalOnSingleCandidate   | 容器中只有一个指定的Bean，或者这个Bean是首选Bean |
+| @ConditionalOnProperty          | 系统中指定的属性是否有指定的值                   |
+| @ConditionalOnResource          | 类路径下是否存在指定资源文件                     |
+| @ConditionalOnWebApplication    | 当前是web环境                                    |
+| @ConditionalOnNotWebApplication | 当前不是web环境                                  |
+| @ConditionalOnJndi              | JNDI存在指定项                                   |
+
+#### 2.12.2  自动配置报告
+
+* 自动配置类必须在一定条件下才能生效，我们可以通过启动SpringBoot的debug模式获得自动配置报告
+
+  ```yaml
+  debug: true
+  ```
+
+  ```java
+  ============================
+  CONDITIONS EVALUATION REPORT
+  ============================
+  
+  
+  Positive matches:（自动配置类启用）
+  -----------------
+  
+     BatchAutoConfiguration matched:
+        - @ConditionalOnClass found required classes 'org.springframework.batch.core.launch.JobLauncher', 'javax.sql.DataSource', 'org.springframework.jdbc.core.JdbcOperations' (OnClassCondition)
+        - @ConditionalOnBean (types: org.springframework.batch.core.launch.JobLauncher; SearchStrategy: all) found bean 'jobLauncher' (OnBeanCondition)
+  
+     BatchAutoConfiguration#batchDataSourceInitializer matched:
+        - @ConditionalOnBean (types: javax.sql.DataSource; SearchStrategy: all) found bean 'dataSource'; @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.batch.BatchDataSourceInitializer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+     ......
+            
+  Negative matches:（没有启动，没有匹配成功的）
+  -----------------
+  
+     ActiveMQAutoConfiguration:
+        Did not match:
+           - @ConditionalOnClass did not find required class 'javax.jms.ConnectionFactory' (OnClassCondition)
+  
+     AopAutoConfiguration:
+        Did not match:
+           - @ConditionalOnClass did not find required class 'org.aspectj.lang.annotation.Aspect' (OnClassCondition)
+     ......
+  ```
+
+  
 
