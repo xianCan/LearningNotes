@@ -672,5 +672,57 @@ public class HttpEncodingAutoConfiguration {
      ......
   ```
 
-  
 
+## 第三章  日志
+
+### 3.1  日志分类
+
+| 日志的抽象层                                                 | 日志的实现                                           |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| ~~JCL（Jakarta Commons Logging）~~、**SLF4J**（Simple Logging Facade forJava）、~~Jboss-logging~~ | Log4j、JUL（java.util.logging）、Log4j2、**Logback** |
+
+### 3.2  SLF4J使用
+
+* 日志记录方法的调用：不应该来直接调用日志的实现类，而是调用日志抽象层里面的方法
+
+  ```java
+  import org.slf4j.Logger;
+  import org.slf4j.LoggerFactory;
+  
+  public class HelloWorld{
+      public static void main(String[] args){
+          private Logger logger = LoggerFactory.getLogger(HelloWorld.class);
+          logger.info("hello world");
+      } 
+  }
+  ```
+
+### 3.3  SpringBoot日志关系
+
+* 可以再IDEA的pom.xml文件中右键Diagrams选中Show dependencies看到整个项目的依赖关系
+
+![](./02.png)
+
+* 总结
+  * 1、SPringBoot底层也是使用slf4j+logback的方式进行日志记录
+  * 2、SpringBoot也把其他的日志都替换成slf4j
+  * 3、中间有一些替换包
+
+### 3.4  日志使用
+
+#### 3.4.1  日志的级别（由低到高）
+
+* trace < debug < info < warn < error
+
+#### 3.4.2  调整输出的日志级别
+
+* SpringBoot默认只输出info及以上级别的日志
+
+* 可以在配置文件中进行配置
+
+  ```yaml
+  logging:
+    level: trace
+  ```
+
+  
