@@ -725,4 +725,55 @@ public class HttpEncodingAutoConfiguration {
     level: trace
   ```
 
+
+#### 3.4.3  指定日志输出文件
+
+* **不指定路径在当前项目下生成springboot.log日志，指定路径就在路径下生成**
+
+  ```yaml
+  logging:
+  	file: springboot.log  #G:/springboot.log
+  ```
+
+* **在指定目录下生成spring.log默认日志文件**
+
+  ```yaml
+  logging:
+  	path: /usr/log
+  ```
+
+* **在控制台输出的日志的格式**
+
+  ```yaml
+  logging:
+  	pattern:
+  		console: ...
+  ```
+
+* **指定文件中日志输出的格式**
+
+  ```yaml
+  logging:
+  	pattern:
+  		file: ...
+  ```
+
+### 3.5  自定义日志配置文件
+
+* 在resources路径下放上每个日志框架自己的配置即可，默认名称：**logback-spring.xml**或  
+
+  **logback.xml**
+
+* logback.xml：直接就被日志框架识别了
+
+* logback-spring.xml：日志框架就不直接加载日志的配置项，由SpringBoot解析日志配置，可以使用高级功  
+
+  能区分开发和生产环境的日志
+
+  ```xml
+  <springProfile name="dev">
+  	<!--可以让本段内容只在开发环境中生效-->
+  </springProfile>
+  ```
+
   
