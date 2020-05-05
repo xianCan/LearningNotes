@@ -1708,4 +1708,194 @@ SpringBoot默认使用Tomcat作为嵌入式的Servlet容器
   }
   ```
 
+## 第六章  数据访问
+
+### 6.1  数据源
+
+* SpringBoot 2.x 默认使用HikariCp作为数据源
+
+* 数据源的相关配置都在DataSourceProperties里面
+
+* 自动配置原理：org.springframework.boot.autoconfigure.jdbc
+
+  * 参考DataSourceConfiguration，根据配置创建数据源，默认使用HikariCp连接池，可以使用spring.  
+
+    datasource.type指定自定义的数据源
+
+  * SpringBoot默认支的数据源：Dbcp2、Hikari、Tomcat
+
+  * 自定义数据源类型
+
+    ```java
+    @Configuration
+    @ConditionalOnMissingBean({DataSource.class})
+    @ConditionalOnProperty(name = {"spring.datasource.type"})
+    static class Generic {
+        Generic() {
+        }
+    
+        @Bean
+        public DataSource dataSource(DataSourceProperties properties) {
+            return properties.initializeDataSourceBuilder().build();
+        }
+    }
+    ```
+
+  * DataSourceInitializer：ApplicationListener
+
+    作用：
+
+    * 1、runSchemaScripts()：运行建表语句
+    * 2、runDataScripts()：运行插入数据的sql语句
+
+### 6.2  整合Druid数据源
+
+* 引入依赖
+
+  ```xml
+  <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>druid</artifactId>
+      <version>1.1.10</version>
+  </dependency>
+  ```
+
+* 加入配置项
+
+  ```yaml
+  spring:
+    datasource:
+  #   数据源基本配置
+      username: root
+      password: root
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/mybatis?serverTimezone=GMT%2B8
+      type: com.alibaba.druid.pool.DruidDataSource
+  #   数据源其他配置
+      initialSize: 5
+      minIdle: 5
+      maxActive: 20
+      maxWait: 60000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+      validationQuery: SELECT 1 FROM DUAL
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      poolPreparedStatements: true
+  #   配置监控统计拦截的filters，去掉后监控界面sql无法统计，'wall'用于防火墙
+      filters: stat,wall,log4j
+      maxPoolPreparedStatementPerConnectionSize: 20
+      useGlobalDataSourceStat: true
+      connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=500
+  ```
+
+* 配置类
+
+  ```java
+  @Configuration
+  public class DruidConfig {
+      @ConfigurationProperties(prefix = "spring.datasource")
+      @Bean
+      public DataSource druid(){
+          return  new DruidDataSource();
+      }
   
+      //配置Druid的监控
+      //1、配置一个管理后台的Servlet
+      @Bean
+      public ServletRegistrationBean<StatViewServlet> statViewServlet(){
+          ServletRegistrationBean<StatViewServlet> bean =
+                  new ServletRegistrationBean<>(new StatViewServlet(), "/druid/*");
+          Map<String,String> initParams = new HashMap<>();
+  
+          initParams.put("loginUsername","admin");
+          initParams.put("loginPassword","123456");
+          initParams.put("allow","");//默认就是允许所有访问
+          initParams.put("deny","192.168.15.21");
+  
+          bean.setInitParameters(initParams);
+          return bean;
+      }
+  
+      //2、配置一个web监控的filter
+      @Bean
+      public FilterRegistrationBean<WebStatFilter> webStatFilter(){
+          FilterRegistrationBean<WebStatFilter> bean = new FilterRegistrationBean<>();
+          bean.setFilter(new WebStatFilter());
+  
+          Map<String,String> initParams = new HashMap<>();
+          initParams.put("exclusions","*.js,*.css,/druid/*");
+  
+          bean.setInitParameters(initParams);
+  
+          bean.setUrlPatterns(Collections.singleton("/*"));
+  
+          return  bean;
+      }
+  }
+  ```
+
+### 6.3  整合Mybatis
+
+* 引入依赖
+
+  ```xml
+  <dependency>
+      <groupId>org.mybatis.spring.boot</groupId>
+      <artifactId>mybatis-spring-boot-starter</artifactId>
+      <version>2.0.1</version>
+  </dependency>
+  ```
+
+  ![](./07.png)
+
+* 注解方式...
+
+* 配置文件方式
+
+  ```yaml
+  mybatis:
+    # 指定全局配置文件位置
+    config-location: classpath:mybatis/mybatis-config.xml
+    # 指定sql映射文件位置
+    mapper-locations: classpath:mybatis/mapper/*.xml
+  ```
+
+  mybatis-config.xml
+
+  ```xml
+  <?xml version="1.0" encoding="UTF-8" ?>
+  <!DOCTYPE configuration
+          PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+          "http://mybatis.org/dtd/mybatis-3-config.dtd">
+  <configuration>
+      
+      <settings>
+          <setting name="mapUnderscoreToCamelCase" value="true" />
+          <setting name="useActualParamName" value="false"/>
+      </settings>
+  
+  </configuration>
+  ```
+
+  EmployeeMapper.xml...
+
+### 6.4  Spring Data
+
+* Spring Data项目的目的是为了简化构建基于Spring框架应用的数据访问技术，包括非关系数据库、Map-  
+
+  Reduce框架、关系数据库和云数据服务等
+
+* Spring  Data 包含多个子项目
+
+  * Spring Data JPA
+  * Spring Data KeyValue
+  * Spring Data MongoDB
+  * Spring Data Redis
+  * Spring Data for Solr
+  * Spring Data Elasticsearch
+  * 等
+
+## 第七章  Spring Boot启动配置原理
+
