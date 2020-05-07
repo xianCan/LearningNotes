@@ -2038,4 +2038,256 @@ SpringBoot默认使用Tomcat作为嵌入式的Servlet容器
 
 #### 7.3.2  自定义starter
 
-* 按照上面3的步骤，先创建一个空工程，然后
+* 1、按照上面3的步骤，先创建一个空工程，然后创建一个maven工程xxx-spring-boot-starter，接着创建另  
+
+  一个maven工程xxx-spring-boot-starter-autoconfigure，然后xxx-spring-boot-starter依赖  
+
+  xxx-spring-boot-starter-autoconfigure，接着对外引用xxx-spring-boot-starter就可以了
+
+* 2、xxx-spring-boot-starter-autoconfigure导入依赖
+
+  ```xml
+  <!--必须引入的依赖-->
+  <dependency>
+  	<groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter</artifactId>
+  </dependency>
+  ```
+
+* 3、xxx-spring-boot-starter-autoconfigure  demo
+
+  * HelloService
+
+    ```java
+    public class HelloService{
+    	
+    	private HelloProperties helloProperties;
+        
+        public HelloService(HelloProperties helloProperties){
+            this.helloProperties = helloProperties;
+        }
+    
+    	public String sayHello(String name){
+    		return helloProperties.getPrefix() "-" + name + "-" + helloProperties.getSuffix();
+    	}
+    }
+    ```
+
+  * HelloProperties
+
+    ```java
+    @ConfigurationProperties(prefix = "xianCan.hello")
+    public class HelloProperties{
+    	
+    	private String prefix;
+    	private String suffix;
+    	
+    	get / set
+    }
+    ```
+
+  * HelloServiceAutoConfiguration
+
+    ```java
+    @Configuration
+    @ConditionalOnWebApplication //web应用才生效
+    @EnableConfigurationProperties(HelloProperties.class)
+    public class HelloServiceAutoConfiguration{
+        
+        @Autowired
+        private HelloProperties helloProperties;
+        
+        @Bean
+        public HelloService helloService{
+            return new HelloService(helloProperties);
+        }
+    }
+    ```
+
+  * 在resources文件夹下创建一个META-INF文件夹，以及创建一个spring.factories文件（该文件是自动注册  
+
+    时所需要用到的扫描包）
+
+    ```properties
+    org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+    com.xianCan.starter.HelloServiceAutoConfiguration
+    ```
+
+* 4、xxx-spring-boot-starter
+
+  * 引入依赖
+
+    ```xml
+    <dependency>
+    	<groupId>com.xianCan.starter</groupId>
+        <artifactId>xianCan-spring-boot-starter</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </dependency>
+    ```
+
+* 5、分别使用maven进行install即可
+
+## 第八章  SpringBoot与缓存
+
+### 8.1  JSR107
+
+* Java Cahing定义了5个核心接口，分别是CachingProvider，CacheManager，Cache，Entry和Expiry
+
+  * CachingProvider定义了创建、配置、获取、管理和控制多个CacheManager。一个应用可以再运行期访  
+
+    问多个CacheManager
+
+  * CacheManager定义了创建、配置、获取、管理和控制多个唯一命名的Cache，这些Cache存在于  
+
+    CacheManager的上下文中。一个CacheManager仅被一个CachingProvider所拥有
+
+  * Cache是一个类似Map的数据结构并临时存储以key为索引的值。一个Cache仅被一个CacheManager所  
+
+    拥有
+
+  * Entry是一个存储在Cache的key-value对
+
+  * Expiry每一个存储在Cache中的条目有一个定义的有效期。一旦超过这个时间，条目为过去的状态。一旦  
+
+    过去，条目将不可访问、更新和删除。缓存有效期可以通过ExpiryPolicy设置
+
+### 8.2  Spring缓存抽象
+
+* Spring从3.1开始定义了org.springframework.cache.Cache和org.springframework.cache.CacheManager  
+
+  接口来统一不同的缓存技术，并支持使用JCache(JSR-107)注解简化我们开发
+
+* Cache接口为缓存的组件规范定义，包含缓存的各种操作集合
+
+* Cache接口下Spring提供了各种xxxCache的实现，如RedisCache，EnCacheCache，ConcurrentMapCache  
+
+  等
+
+* 每次调用缓存功能的方法时，SPring会检查指定参数的目标方法是否已经被缓存过。如果有就直接从缓存中  
+
+  获取方法调用后的结果，如果没有就调用方法并缓存结果后返回给用户。下次调用直接从缓存中获取
+
+* 使用Spring缓存抽象时我们需要关注以下两点
+
+  * 1、确定方法需要被缓存以及它们的缓存策略
+  * 2、从缓存中读取之前缓存存储的数据
+
+### 8.3  几个重要概念和缓存注解
+
+| 名称           | 解释                                                         |
+| -------------- | ------------------------------------------------------------ |
+| Cache          | 缓存接口，定义缓存操作。实现有：RedisCache、EhCacheCache、ConcurrentMapCache等 |
+| CacheManager   | 缓存管理器，管理各种缓存（Cache）组件                        |
+| @Cacheable     | 主要针对方法配置，能够根据方法的请求参数对其结果进行缓存     |
+| @CacheEvict    | 清空缓存                                                     |
+| @CachePut      | 保证方法被调用，又希望结果被缓存                             |
+| @EnableCaching | 开启基于注解的缓存                                           |
+| keyGenerator   | 缓存数据时key生成策略                                        |
+| serialize      | 缓存数据时value序列化策略                                    |
+
+### 8.4  缓存注解
+
+* Cache SpEL available metadata
+
+  | 名字         | 位置              | 描述                                                         | 示例                 |
+  | ------------ | ----------------- | ------------------------------------------------------------ | -------------------- |
+  | methodName   | root Object       | 当前被调用的方法名                                           | #root.methodName     |
+  | method       | root Object       | 当前被调用的方法                                             | #root.method.name    |
+  | target       | root Object       | 当前被调用的目标对象                                         | #root.target         |
+  | targetClass  | root Object       | 当前被调用的目标对象类                                       | #root.targetClass    |
+  | args         | root Object       | 当前被调用的方法的参数列表                                   | #root.args[0]        |
+  | caches       | root Object       | 当前方法调用使用的缓存列表（如@Cacheable（value={"cache1","cache2"}），则有两个cache） | #root.caches[0].name |
+  | argumentname | evalution context | 方法参数的名字，可以直接 #参数名，也可以使用#p0或#a0的形式，0代表参数的索引 | #Id，#a0，#p0        |
+  | result       | evalution context | 方法执行后的返回值（仅当方法执行之后的判断有效，如'unless'，'cache put'的表达式'cache evict'的表达式beforeInvocation=false） | #result              |
+
+* @Cacheable：将方法的运行结果进行缓存，以后再要相同的数据，直接从缓存中获取，不再调用方法
+  * cacheNames/value：指定缓存的名字
+  * key：缓存数据使用时的key。默认是使用方法参数的值  1-返回值
+  * keyGenerator：key的生成器，可以自己制定key的生成器策略
+  * cacheManager：指定缓存管理器
+  * cacheResolver：指定获取缓存解析器
+  * condition：指定符合条件的情况下才缓存
+  * unless：unless为true，不进行缓存
+  * sync：是否使用同步模式
+
+### 8.5  缓存工作原理
+
+#### 8.5.1  工作流程
+
+* 1、自动配置类：CacheAutoConfiguration
+* 2、缓存的配置类
+  * org.springframework.boot.autoconfigure.cache.GenericCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.JCacheCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.EhCacheCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.HazelcastCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.InfinispanCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.CouchbaseCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.RedisCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.CaffeineCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.GuavaCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.SimpleCacheConfiguration
+  * org.springframework.boot.autoconfigure.cache.NoOpCacheConfiguration
+* 3、默认生效的配置类：SimpleCacheConfiguration
+* 4、给容器中注册一个CacheManager：ConcurrentMapCacheManager
+* 5、可以获取和创建ConcurrentMapCache类型的缓存组件，将数据保存在ConcurrentMap中
+
+#### 8.5.2  @Cacheable
+
+* 1、方法运行之前，先去查询Cache（缓存组件），按照cacheNames指定的名字获取。CacheManager先去  
+
+  获取相应的缓存，第一次获取缓存如果没有会先自动创建
+
+* 2、去Cache中查找缓存的内容，默认使用方法参数作为key。key是按照某种策略生成的，默认是使用  
+
+  KeyGenerator，默认实现类是SimpleKeyGenerator
+
+  * SimpleKeyGenerator的默认策略
+    * 没有参数：key = new SimpleKey()
+    * 一个参数：key = 参数的值
+    * 多个参数：key = new SimpleKey(params)
+
+* 3、没有查到缓存就调用目标方法
+
+* 4、将目标方法的返回值放进缓存中
+
+#### 8.5.3  @CachePut
+
+* 既调用方法，又更新缓存数据，相当于crud的修改
+* 注意和@Cacheable的key要一致
+
+#### 8.5.4  @CacheEvict
+
+* 删除缓存，默认缓存清除操作是在方法执行之后执行，如果出现异常缓存就不会清除
+* allEntries：是否删除某名字缓存中的所有缓存，默认false
+* beforeInvocation = true，代表清除缓存操作放在方法执行之前
+
+#### 8.5.5  @Caching
+
+* 相当于@Cacheable、@CachePut和@CacheEvict的结合体
+
+#### 8.5.6  @CacheConfig
+
+* 作用于类上，指定一些共有属性
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
