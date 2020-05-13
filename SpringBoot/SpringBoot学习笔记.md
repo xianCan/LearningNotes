@@ -2269,6 +2269,60 @@ SpringBoot默认使用Tomcat作为嵌入式的Servlet容器
 
 * 作用于类上，指定一些共有属性
 
+### 8.6  整合Redis
+
+* 导入redis的依赖
+
+  ```xml
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+  </dependency>
+  ```
+
+* 基本操作
+
+  ```java
+  @Autowired
+  private StringRedisTemplate stringRedisTemplate;//操作字符串的
+  
+  @Autowired
+  private RedisTemplate redisTemplate;//k-v都是Object
+  
+  public void test(){
+      stringRedisTemplate.opsForValue();//操作字符串
+      stringRedisTemplate.opsForList();//操作集合，底层相当于java的LinkedList（双端链表）
+      stringRedisTemplate.opsForHash();//操作Hash，相当于双层的Hash，大key 小key 值
+      stringRedisTemplate.opsForSet();//操作set，相当于java的HashSet
+      stringRedisTemplate.opsForZSet();//操作Sort Set，set加上一个权重值
+      stringRedisTemplate.opsForGeo();//操作Geo
+      stringRedisTemplate.opsForHyperLogLog();//操作HyperLogLog
+      stringRedisTemplate.opsForCluster();//操作集群
+  }
+  ```
+
+* 自定义序列化规则（默认使用jdk的序列化机制）
+
+  ```java
+  @Bean
+  public RedisTemplate<Object, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) throws UnknownHostException {
+      RedisTemplate<Object, Object> template = new RedisTemplate();
+      template.setConnectionFactory(redisConnectionFactory);
+      template.setDefaultSerializer(new Jackson2RedisSerializer<Object>());//修改默认的序列化机制，只要导入jackson相关依赖，就可以引入jackson的序列化机制
+      return template;
+  }
+  ```
+
+### 8.7  原理
+
+* CacheManager==Cache缓存组件来实际给缓存中取数据
+* 1、引入Redis的starter，容器中保存的是RedisCacheManager
+* 2、RedisCacheManager帮我们创建RedisCache来缓存组件，RedisCache通过操作redis缓存数据
+* 3、默认保存数据 k-v 都是 Object，利用序列化保存，如何保存为json？
+  * 1、引入了 redis 的 starter，cacheManager 变为 RedisCacheManager
+  * 2、默认创建的 RedisCacheManager 操作 redis 的时候使用的是 RedisTemplate<Object, Object>
+  * 3、RedisTemplate<Object, Object> 默认是使用 jdk 的序列化机制
+
 
 
 
