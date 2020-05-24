@@ -461,9 +461,191 @@ hexists key field	#查看hash表中对应的field字段是否存在
 
     redis提供的hash很好的解决了这个问题，redis的hash实际是内部存储的value作为一个hashmap
 
+### 3.5  List类型
 
+> 简介：
+>
+> List类型是一个链表结构的集合，其主要功能有push、pop、获取元素等。更详细的说，List类型是一个双端链表，我们可以通过相关的操作进行集合的头部和尾部添加和删除元素，List的设计非常简单精巧，既可以作为栈，又可以作为队列，满足绝大多数需求
+>
+> 按照插入顺序排序。你可以添加一个元素到列表的头部或者尾部，一个列表最多可以包含2的32次方-1个元素，类似于Java中的LinkedList
 
+**List命令**
 
+```shell
+#赋值
+lpush key value1 value2 ... #将一个或多个值插入到列表头部
+rpush key value1 value2 ... #将一个或多个值插入到列表尾部
+lpushx key value	#将一个值插入到已存在的列表头部，如果列表不存在，操作无效
+rpushx key value	#将一个值插入到已存在的列表尾部，如果列表不存在，操作无效
+
+#取值
+llen key	#获取队列长度
+lindex key index	#通过索引获取列表中的值
+lrange key start stop	#获取列表指定范围内的元素
+#返回列表中指定区间内的元素，区间偏移量start和end指定
+#其中0表示列表的第一个元素，1代表列表的第二个元素，以此类推
+#也可以使用负数下标，以-1表示列表的最后一个元素，-2代表列表的倒数第二个元素，以此类推
+
+#删除
+lpop key	#移出并获取列表的第一个元素（从左侧删除）
+rpop key	#移出并获取列表的第一个元素（从右侧删除）
+blpop key timeout	#移出并获取列表的第一个元素，如果列表没有元素会阻塞列表知道等待超时或发现可弹出元素为止，brpop一样，从右边开始
+ltrim key start stop	#对一个列表进行修剪，只保留指定区间的元素
+
+#实例：
+blpop list 100
+#在上述的实例中，操作会被阻塞，如果指定的列表 key list存在数据则返回第一个元素，否则在等待100秒后会返回nil
+
+#修改
+lset key index value	#设置指定索引的值
+linsert key before|after world value	#在列表的元素前或后参入元素，位置在world的前或后
+
+rpoplpush source destination	#将source右侧的值放到destination的左侧
+rpoplpush key key		#将key的右侧放到左侧去
+brpoplpush a1 a2 timeout	#阻塞队列
+```
+
+* **应用场景**
+
+  * **1、对数据量大的集合数据删减**
+
+    列表数据显示、关注列表、粉丝列表、留言评价等...分页、热点新闻等。利用lrange还可以很方便的实  
+
+    现分页的功能，在博客系统中，每篇博文的评论也可以存入一个单独的list中
+
+  * **2、任务队列**
+
+    list通常用来实现一个消息队列，而且可以确保先后顺序，不必像mysql那样还需要通过order by来进行  
+
+    排序。举例：用户系统登录注册短信实名认证等、订单系统的下单流程等
+
+    ```bat
+    任务队列介绍（生产者和消费者模式）
+    	在处理web客户端发送的命令请求时，某些操作的执行时间可能会比我们预期的更长一些，通过将待执行任务的相关信息放入队列里面，并在之后对队列进行处理，用户可以推迟执行那些需要一段时间才能完成的操作，者共将工作交给任务处理器来执行的做法被称为任务队列（task queue）
+    	
+    rpoplpush source destination
+    移出列表的最后一个元素，并将该元素添加到另外一个列表并返回
+    ```
+
+### 3.6  Set类型
+
+> 简介：
+>
+> redis的集合对象set感知上特别像java中的HashSet，但底层数据结构却像java的HashTable。底层使用了intset和hashtable两种数据结构存储，intset我们可以理解为数组，hashtable就是普通的哈希表（key为set，value为null）。intset内部其实是一个数组（int8_t coentents[]数组），而且存储数据的时候是有序的，因为查找数据的时候是通过二分查找来实现的
+
+**Set命令**
+
+```shell
+#赋值
+sadd key value1 value2 ...	#向集合添加一个或多个元素
+
+#取值
+scard key	#获取key的成员数量
+smembers key	#返回集合中的所有成员
+sismember key member	#判断member元素是否是集合key的成员
+srandmember key [count]		#返回集合中一个或多个随机数
+
+#删除语法
+srem key mamber1 member2	#移除集合中一个或多个城公园
+spop key [count]	#移除并返回集合中的一个随机元素
+smove source destination mamber #将member元素从source集合移动到destination集合
+
+#差集语法
+sdiff key1 key2		#返回给定所有几何的差集，以左侧为主
+sidffstore destination key1 [key2]		#返回给定所有集合的差集并存储在destination中
+
+#交集
+sinter key1 key2	#返回给定所有几何的差集，以左侧为主
+sinterstore destination key1 key2		#返回给定所有集合的交集并存储在destination中
+
+#并集
+sunion	key1 key2	#返回给定所有几何的并集，以左侧为主
+sunionstore destination key1 key2	#返回给定所有集合的并集并存储在destination中
+```
+
+* **应用场景**
+
+  **对两个集合间的数据进行交集、并集、差集运算**
+
+  * 以非常方便的实现如共同关注、共同系好、二度好友等功能。对上面的所有集合操作，你还可以使用不同  
+
+    的命令选择将结果返回给客户端还是存集到一个新的集合中
+
+  * 利用唯一性，可以统计访问网站的所有独立IP
+
+### 3.7  ZSet类型
+
+> 简介：
+>
+> 1、Redis有序集合和集合一样也是String类型元素的集合，且不允许重复的成员
+>
+> 2、不同的是每个元素都会关联一个double类型的分数。rdis正式通过分数来为集合中的成员进行从小到大的排序
+>
+> 3、有序集合的成员是唯一的，但分数（score）却可以重复
+>
+> 4、集合是通过哈希表实现的，默认从小到大排序
+
+**ZSet命令**
+
+```shell
+#赋值
+zadd key score1 member1 score2 member2 ...	#向有序集合添加一个或多个成员，或者更新已存在成员的分数
+
+#取值
+zcard key	#获取有序集合的成员数
+zcount key min max	#计算在有序集合中指定区间分数的成员数
+zrank key member	#返回有序集合中指定成员的索引
+zrange key start stop	#通过索引区间返回有序集合指定区间内的成员（低到高）
+zrangebyscore key min max	#通过分数返回有序集合指定区间内的成员
+zrevrange key start stop	#返回有序集合中指定区间的成员，分数从高到低
+zrevrangebyscore key max min	#返回有序集合中指定分数区间内的成员，分数从高到低排序
+
+#删除语法
+del key		#移除集合
+zrem key member		#移除有序集合中的一个或多个成员
+zremrangebyrank key start stop	#移除有序集合中给定排名区间的所有成员（低到高排序，第一名排序是0）
+zremrangebyscore key min max	#移除有序集合中给定的分数区间的所有成员
+
+zincrby key incrment member		#增加member元素的分数incrment，返回值是更改后的分数
+```
+
+* **应用场景**
+
+  排行榜、销量排名、积分排名等
+
+  * 1、twitter的public timeline可以以发表时间作为score来存储，这样获取时就是自动按时间排好序的
+
+  * 2、比如一个存储全班同学成绩的Sorted Set，其集合value可以使同学的学号，而score就可以是其考试 
+
+    得分，这样在数据插入集合时，就已经进行了天然的排序
+
+  * 3、还可以用Sorted Set来做带权重的队列，比如普通消息的score为1，重要消息的score为2，然后工作  
+
+    线程可以按score的倒序来获取工作任务，让重要的任务优先执行
+
+### 3.8  HyperLogLog类型
+
+> 简介：
+>
+> Redis在2.8.9版本添加了HyperLogLog结构，Redis的HyperLogLog是用来做基数统计的算法，优点是在输入元素的数量或体积非常非常大时，计算基数所需的空间总是固定的，并且是很小的
+>
+> 在Redis里面，每个HyperLogLog键只需要花费12KB内存，就可以计算接近2^64个不同元素的基数，这和计算基数时，元素越多耗费内存就越多的集合形成鲜明对比。但是，因为HyperLogLog只会根据输入元素来计算基数，而不会存储输入元素本身，所以HyperLogLog不能像集合那样，返回输入的各个元素
+
+* **什么是基数：比如数据集{1,3,5,7,5,7,8}，那么这个数据集的基数集为{1,3,5,7,8}，基数为5。基数估计就是**  
+
+  **在误差可接受的范围内，快速计算基数**
+
+**HyperLogLog命令**
+
+```shell
+pfadd key element ...	#添加元素到hyperloglog中
+pfcount key		#返回给定hyperloglog的基数估算值
+pfmerge destkey sourcekey1 sourcekey2 ...	#将多个hyperloglog合并为一个hyperloglog
+```
+
+### 3.9  Bitmap类型
+
+### 3.10  Geo类型
 
 ## 第四章  Redis与Spring
 
@@ -514,3 +696,33 @@ hexists key field	#查看hash表中对应的field字段是否存在
 > 优先使用lettuce，如果需要使用分布式锁，分布式集合等分布式高级特性，添加redisson结合使用，因为redisson本身对字符串的操作支持很差
 >
 > 在一些高并发的场景中，比如秒杀，抢票，抢购等场景，都存在对核心资源，商品库存的争夺，控制不好，库存数量可能会被减少到负数，出现超卖的情况，或者产生一个递增的ID，由于Web应用部署在多个机器上，简单的同步加锁是无法实现的，给数据库加锁，对于高并发，1000/s的并发，数据库可能由行锁变成表锁，性能下降会很厉害。那相对而言，redis的分布式锁，是一个很好的选择，redis官方推荐使用redisson来进行分布式锁和相关服务
+
+### 4.2  两个使用场景
+
+#### 4.2.1  手机验证功能
+
+> 用户在客户端输入手机号，点击发送后随机生成4位数字码。设置对应的有效期。输入验证码，点击验证，返回成功或者失败。且每个手机号在5分钟内只能验证3次，并给出相应的提示
+
+#### 4.2.2  限制登录功能
+
+> 用户在2分钟内，仅允许输入错误密码5次，如果超过次数，限制登录1小时。
+
+* **分析逻辑**
+
+  ```bat
+  1 判断当前登录的用户是否被限制登录
+  1.1 如果没有被限制，执行登录功能
+  	2 判断是否登陆成功
+  	2.1 登陆成功 》 清除输入密码错误次数信息
+  	2.2 登录不成功
+  		3 记录登录错误次数（判断redis中对应的key是否存在）
+  		3.1 不存在，是第一次登录且失败，记录+1，并且设置失效期
+  		3.2 如果存在
+  		查询登录失败的key的结果
+  		if(结果<4) +1
+  		else 创建限制登录的key，同时有效期设为1小时
+  1.2 如果被限制
+  做出相应提示
+  ```
+
+  
