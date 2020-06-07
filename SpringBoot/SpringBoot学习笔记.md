@@ -2323,6 +2323,20 @@ SpringBoot默认使用Tomcat作为嵌入式的Servlet容器
   * 2、默认创建的 RedisCacheManager 操作 redis 的时候使用的是 RedisTemplate<Object, Object>
   * 3、RedisTemplate<Object, Object> 默认是使用 jdk 的序列化机制
 
+## 第九章  SpringBoot与任务
+
+### 9.1  异步任务
+
+* 启动类上加上**@EnableAsync**
+* 方法上面加上**@Async**，其中可以自己指定线程池
+
+### 9.2  定时任务
+
+* 启动类上加上**@EnableScheduling**
+* 方法上面加上**@Scheduled(corn = "* * * * * *")**
+
+### 9.3  邮件任务
+
 
 
 
