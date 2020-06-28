@@ -1507,3 +1507,189 @@ echo "========执行备份成功========"
 10 2 * * * /usr/sbin/mysql_db_backup.sh
 ```
 
+## 第十五章  命令
+
+### 15.1 EP1  简单命令
+
+* 自言自语  echo
+
+  ```shell
+  echo xianCan
+  ```
+
+* 我在哪 pwd （Print Working Directory）
+
+  ```shell
+  pwd
+  ```
+
+* 换个地方  cd （Change Directory）
+
+  ```shell
+  cd /usr/local/
+  cd ..		#返回上一层
+  ```
+
+* 瞄一瞄  ls  （List Directory Contents）
+
+  ```shell
+  ls
+  ls -l	#list mode
+  ls -l -a = ls -la	#list + all files
+  ls -lh	#list + human readbale size
+  ```
+
+* 用户手册  man （Manual）
+
+  ```shell
+  man pwd
+  man man
+  ```
+
+* 内置帮助 命令 -h
+
+  ```shell
+  man -h
+  grep --help
+  ```
+
+  ------
+
+* 打印文件内容 cat （Concatenate and print files）
+
+  ```shell
+  cat a.txt
+  cat a.txt b.txt		#print a.txt then b.txt
+  cat < a.txt		#read from stdin
+  ```
+
+* 头和尾 head and tail
+
+  ```shell
+  head a.txt
+  tail a.txt / tail -n 5 a.txt / tail -f a.txt
+  ```
+
+* 交互浏览 less （readonly version of vi?）
+
+  ```shell
+  less a.txt
+  ```
+
+* 内容查找 / or grep
+
+  ```shell
+  man less | grep -n sim		#-n 显示行号
+  ```
+
+* 单词统计 wc （Word, line and byte count）
+
+  ```shell
+  man wc | wc
+  man wc | wc -l #统计一下wc的手册有多少行
+  ```
+
+  ------
+
+* 重定向：改变输入输出设备
+
+  ```shell
+  #标准输入（stdin）/标准输出（stdout）：控制台/键盘 / 屏幕
+  echo hello > hello.txt	#redirect to a file，将hello输出到hello.txt中
+  echo world >> hello.txt		#append to a file
+  cat < hello.txt		#use file as stdin / read from file
+  ```
+
+* 管道：将前一个命令的标准输出作为下一个程序的标准输入
+
+  ```shell
+  man less | grep sim
+  man less | grep -n sim | grep That > that.txt	#multiple pipes
+  ```
+
+### 15.2  EP2  运行脚本
+
+* #!/usr/bin/env python3
+
+  使用哪个解释器去解释/运行脚本，必须放在第一行，并使用绝对路径
+
+  * #!/bin/sh
+  * #!/bin/bash
+  * #!/usr/bin/perl
+  * #!/usr/bin/php
+
+* chmod  改变文件的权限
+
+* mv 移动
+
+* cp 复制
+
+* rm 删除
+
+* $PATH  环境变量  + which 命令
+
+  * $PATH:		以:分隔的文件夹列表，从哪里去找可执行文件（按照文件夹的顺序查找）
+  * PATH=$PATH:$PWD    把当前目录追加到PATH中
+  * echo $PATH    打印path
+  * which：locate a program file in user's path
+
+### 15.3  EP3  事件处理
+
+* cat *.pgn | grep "Result" | sort | uniq -c
+
+  * grep "Result"	只要含有Result的行
+
+  * sort    排序
+
+    * sort会把所有数据读入内存，如果内存存不下则会写入临时文件
+    * 时间复杂度：O(nlogn)
+    * 空间复杂度：O(n)
+
+  * uniq -c    统计出现相同的项，因为uniq只统计上下相同的行，一旦跳行，则归为不同的项，因此多数时
+
+    间与sort连用
+
+    * 时间复杂度：O(n)
+    * 空间复杂度：O(1)
+
+* awk
+
+  ```shell
+  cat *.pgn | grep "Result" | awk '{ split($0,a,"_");res = substr(a[1],length(a[1],1));if(res==1) white++;if(res==0) black++;if(res==2)draw++;} END {print white+black+draw,white,black,draw}'
+  ```
+
+  * $0    输入行    '[Result "1/2-1/2"]'
+  * split($0, a, "_")    按-分割    a=['[Result "1/2", "1/2"]']
+  * substr(a[1], length(a[1], 1))    取出最后一个字符
+  * 时间复杂度：O(n)
+  * 空间复杂度：O(1)
+
+* 并行化，管道符是并行运行的
+
+  ```shell
+  sleep 3 | sleep 5 | echo '8'	#会马上打印出8，但是5s后才返回
+  ```
+
+### 15.4  EP4  进程管理
+
+* stress  给系统增加负载或者进行压力测试
+
+  * -t/--timeout  N    N秒后超时
+
+  * -c/--cpu  N    孵化N个worker，死循环运行sqrt()  /  CPU
+
+  * -i/--io  N    孵化N个worker，死循环运行sync()  /  IO
+
+  * -m/--vm  N    孵化N个worker，死循环运行malloc()/free()  /  Memory
+
+  * -d/--hdd  N    孵化N个worker，死循环运行write()/unlink()  /  Disk
+
+    ```shell
+    stress --cpu 8 --io 4 --vm 2  --vm-bytes 128M --timeout 10s
+    ```
+
+* top  显示或更新排序过的进程信息
+
+  - 默认按照CPU占用率排序
+  - 当风扇声音很大的时候就可以看一下谁在搞鬼
+
